@@ -40,9 +40,16 @@ class GitService {
    * On push failure, attempts git pull --rebase then retries push once.
    */
   async commitAndPush(filePath, message, username) {
+    const authorName = username || 'Documentation Tool';
+    const authorEmail = `${username || 'editor'}@documentation-tool`;
+
+    await this.git
+      .addConfig('user.name', authorName)
+      .addConfig('user.email', authorEmail);
+
     await this.git.add(filePath);
     await this.git.commit(message, filePath, {
-      '--author': `${username} <${username}@documentation-tool>`,
+      '--author': `${authorName} <${authorEmail}>`,
     });
 
     try {
