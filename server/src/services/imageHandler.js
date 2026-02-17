@@ -13,7 +13,9 @@ function saveUploadedImage(repoPath, file) {
   }
 
   const destPath = path.join(imagesDir, file.originalname);
-  fs.renameSync(file.path, destPath);
+  // Use copy+unlink instead of rename to work across Docker volume mounts
+  fs.copyFileSync(file.path, destPath);
+  fs.unlinkSync(file.path);
 
   return path.join('images', file.originalname);
 }
