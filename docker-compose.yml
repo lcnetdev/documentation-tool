@@ -1,0 +1,22 @@
+services:
+  app:
+    build: .
+    ports:
+      - "4580:4580"
+      - "5173:5173"
+    volumes:
+      - ./server:/app/server
+      - ./client:/app/client
+      - ./docs:/app/docs
+      - server_modules:/app/server/node_modules
+      - client_modules:/app/client/node_modules
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=${NODE_ENV:-development}
+      - BASE_PATH=${BASE_PATH:-/}
+      - VITE_BASE_PATH=${BASE_PATH:-/}
+
+volumes:
+  server_modules:
+  client_modules:

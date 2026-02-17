@@ -1,0 +1,760 @@
+/* ============================================
+   CSS Reset / Normalize
+   ============================================ */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  -moz-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  line-height: 1.5;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+  background: #f8f9fa;
+  color: #1a202c;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+a {
+  color: #4a90d9;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+button {
+  font-family: inherit;
+}
+
+input,
+textarea {
+  font-family: inherit;
+}
+
+ul,
+ol {
+  list-style: none;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  line-height: 1.3;
+  font-weight: 600;
+}
+
+/* ============================================
+   Viewer Layout: Two-column (sidebar + content)
+   ============================================ */
+.viewer-layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+.viewer-sidebar {
+  width: 280px;
+  min-width: 280px;
+  background: #fff;
+  border-right: 1px solid #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  overflow-y: auto;
+}
+
+.viewer-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ============================================
+   Editor Layout: Three-column (tree + editor + preview)
+   ============================================ */
+.editor-layout {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.editor-filetree {
+  width: 250px;
+  min-width: 250px;
+  background: #fff;
+  border-right: 1px solid #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.editor-main {
+  flex: 1;
+  display: flex;
+  min-width: 0;
+  margin-bottom: 52px;
+}
+
+.editor-pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border-right: 1px solid #e2e8f0;
+}
+
+.preview-pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow-y: auto;
+}
+
+/* ============================================
+   Sidebar Styling
+   ============================================ */
+.sidebar-header {
+  padding: 16px;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sidebar-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1a202c;
+}
+
+/* ============================================
+   Markdown Rendered Content
+   ============================================ */
+.markdown-body h1 {
+  font-size: 2em;
+  margin: 0.67em 0 0.4em;
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid #e2e8f0;
+  color: #1a202c;
+}
+
+.markdown-body h2 {
+  font-size: 1.5em;
+  margin: 1em 0 0.4em;
+  padding-bottom: 0.25em;
+  border-bottom: 1px solid #edf2f7;
+  color: #1a202c;
+}
+
+.markdown-body h3 {
+  font-size: 1.25em;
+  margin: 1em 0 0.4em;
+  color: #2d3748;
+}
+
+.markdown-body h4 {
+  font-size: 1em;
+  margin: 1em 0 0.4em;
+  color: #2d3748;
+}
+
+.markdown-body h5 {
+  font-size: 0.875em;
+  margin: 1em 0 0.4em;
+  color: #4a5568;
+}
+
+.markdown-body h6 {
+  font-size: 0.85em;
+  margin: 1em 0 0.4em;
+  color: #718096;
+}
+
+.markdown-body p {
+  margin: 0 0 1em;
+  line-height: 1.7;
+}
+
+.markdown-body ul,
+.markdown-body ol {
+  margin: 0 0 1em;
+  padding-left: 2em;
+}
+
+.markdown-body ul {
+  list-style-type: disc;
+}
+
+.markdown-body ol {
+  list-style-type: decimal;
+}
+
+.markdown-body li {
+  margin: 0.25em 0;
+  line-height: 1.6;
+}
+
+.markdown-body li > ul,
+.markdown-body li > ol {
+  margin-bottom: 0;
+}
+
+.markdown-body table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1em 0;
+  font-size: 0.95em;
+}
+
+.markdown-body thead th {
+  background: #f7fafc;
+  border: 1px solid #e2e8f0;
+  padding: 8px 12px;
+  text-align: left;
+  font-weight: 600;
+  color: #2d3748;
+}
+
+.markdown-body tbody td {
+  border: 1px solid #e2e8f0;
+  padding: 8px 12px;
+  vertical-align: top;
+}
+
+.markdown-body tbody tr:nth-child(even) {
+  background: #f7fafc;
+}
+
+.markdown-body code {
+  font-family: 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+  font-size: 0.875em;
+  background: #f1f5f9;
+  padding: 0.2em 0.4em;
+  border-radius: 3px;
+  color: #e53e3e;
+}
+
+.markdown-body pre {
+  margin: 1em 0;
+  padding: 16px;
+  background: #1e293b;
+  border-radius: 6px;
+  overflow-x: auto;
+  line-height: 1.5;
+}
+
+.markdown-body pre code {
+  background: none;
+  padding: 0;
+  color: #e2e8f0;
+  font-size: 13px;
+  border-radius: 0;
+}
+
+.markdown-body blockquote {
+  margin: 1em 0;
+  padding: 0.5em 1em;
+  border-left: 4px solid #4a90d9;
+  background: #ebf8ff;
+  color: #2c5282;
+}
+
+.markdown-body blockquote p:last-child {
+  margin-bottom: 0;
+}
+
+.markdown-body hr {
+  border: none;
+  border-top: 1px solid #e2e8f0;
+  margin: 2em 0;
+}
+
+.markdown-body a {
+  color: #4a90d9;
+  text-decoration: none;
+}
+
+.markdown-body a:hover {
+  text-decoration: underline;
+}
+
+.markdown-body strong {
+  font-weight: 600;
+}
+
+/* ============================================
+   Doc Image: macOS subtle drop shadow
+   ============================================ */
+.doc-image {
+  max-width: 100%;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.12);
+  margin: 1rem 0;
+}
+
+/* ============================================
+   Search Overlay
+   ============================================ */
+.search-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 15vh;
+  z-index: 1000;
+}
+
+.search-modal {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+  width: 100%;
+  max-width: 640px;
+  max-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.search-input {
+  flex: 1;
+  border: none;
+  font-size: 16px;
+  outline: none;
+  padding: 4px 0;
+}
+
+/* ============================================
+   Editor Textarea
+   ============================================ */
+.editor-textarea {
+  flex: 1;
+  border: none;
+  outline: none;
+  resize: none;
+  padding: 12px 16px;
+  font-family: 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #1a202c;
+  background: #fff;
+  tab-size: 2;
+  white-space: pre;
+  overflow-wrap: normal;
+  overflow-x: auto;
+  width: 100%;
+  min-height: 100%;
+}
+
+/* ============================================
+   Toolbar
+   ============================================ */
+.editor-toolbar {
+  display: flex;
+  align-items: center;
+  padding: 4px 8px;
+  background: #f7fafc;
+  border-bottom: 1px solid #e2e8f0;
+  gap: 2px;
+  flex-wrap: wrap;
+}
+
+.toolbar-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 28px;
+  padding: 0 6px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: #4a5568;
+  transition: all 0.1s;
+}
+
+.toolbar-btn:hover {
+  background: #edf2f7;
+  border-color: #e2e8f0;
+}
+
+.toolbar-btn:active {
+  background: #e2e8f0;
+}
+
+/* ============================================
+   SaveBar: Fixed bottom, dark background
+   ============================================ */
+.save-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #1a202c;
+  border-top: 1px solid #2d3748;
+  z-index: 100;
+}
+
+.save-bar-inner {
+  display: flex;
+  align-items: center;
+  padding: 8px 16px;
+  gap: 12px;
+}
+
+.commit-input {
+  flex: 1;
+  padding: 6px 12px;
+  border: 1px solid #4a5568;
+  border-radius: 4px;
+  background: #2d3748;
+  color: #e2e8f0;
+  font-size: 13px;
+  outline: none;
+}
+
+.commit-input:focus {
+  border-color: #4a90d9;
+}
+
+.save-btn {
+  padding: 6px 20px;
+  background: #48bb78;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.save-btn:hover:not(:disabled) {
+  background: #38a169;
+}
+
+.save-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ============================================
+   Login Form: Centered card
+   ============================================ */
+.login-overlay {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: #f0f2f5;
+}
+
+.login-card {
+  background: #fff;
+  padding: 40px;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 400px;
+}
+
+.login-card h2 {
+  margin: 0 0 24px 0;
+  font-size: 20px;
+  text-align: center;
+  color: #1a202c;
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #4a5568;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: #4a90d9;
+  box-shadow: 0 0 0 3px rgba(74, 144, 217, 0.1);
+}
+
+.login-error {
+  color: #e53e3e;
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+
+.login-btn {
+  width: 100%;
+  padding: 10px;
+  background: #4a90d9;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.login-btn:hover {
+  background: #357abd;
+}
+
+/* ============================================
+   File Tree
+   ============================================ */
+.tree-root {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.tree-item {
+  list-style: none;
+}
+
+.tree-label {
+  display: flex;
+  align-items: center;
+  padding: 4px 12px 4px 16px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #4a5568;
+  text-decoration: none;
+  transition: background-color 0.1s;
+  user-select: none;
+}
+
+.tree-label:hover {
+  background: #edf2f7;
+}
+
+.tree-file.active {
+  background: #ebf4ff;
+  color: #2b6cb0;
+  font-weight: 500;
+}
+
+.tree-arrow {
+  width: 16px;
+  font-size: 10px;
+  color: #a0aec0;
+  flex-shrink: 0;
+}
+
+.tree-icon {
+  width: 16px;
+  height: 16px;
+  margin-right: 6px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.folder-icon::before {
+  content: '\1F4C1';
+  font-size: 13px;
+}
+
+.file-icon::before {
+  content: '\1F4C4';
+  font-size: 13px;
+}
+
+.tree-file .tree-icon {
+  margin-left: 16px;
+}
+
+.tree-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tree-children {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 12px;
+}
+
+/* ============================================
+   Responsive Considerations
+   ============================================ */
+@media (max-width: 1200px) {
+  .viewer-sidebar {
+    width: 240px;
+    min-width: 240px;
+  }
+
+  .editor-filetree {
+    width: 200px;
+    min-width: 200px;
+  }
+
+  .content-body {
+    padding: 24px;
+  }
+}
+
+@media (max-width: 900px) {
+  .viewer-layout {
+    flex-direction: column;
+  }
+
+  .viewer-sidebar {
+    width: 100%;
+    min-width: 100%;
+    height: auto;
+    position: static;
+    max-height: 40vh;
+    border-right: none;
+    border-bottom: 1px solid #e2e8f0;
+  }
+
+  .editor-layout {
+    flex-direction: column;
+    height: auto;
+    min-height: 100vh;
+  }
+
+  .editor-filetree {
+    width: 100%;
+    min-width: 100%;
+    max-height: 30vh;
+    border-right: none;
+    border-bottom: 1px solid #e2e8f0;
+  }
+
+  .editor-main {
+    flex-direction: column;
+  }
+
+  .editor-pane {
+    border-right: none;
+    border-bottom: 1px solid #e2e8f0;
+    min-height: 40vh;
+  }
+
+  .preview-pane {
+    min-height: 40vh;
+  }
+}
+
+@media (max-width: 640px) {
+  .content-body {
+    padding: 16px;
+  }
+
+  .search-modal {
+    margin: 0 16px;
+    max-height: 80vh;
+  }
+
+  .login-card {
+    margin: 0 16px;
+    padding: 24px;
+  }
+}
+
+/* ============================================
+   Scrollbar Styling
+   ============================================ */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e0;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a0aec0;
+}
+
+/* Firefox scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e0 transparent;
+}
+
+/* ============================================
+   Utility Classes
+   ============================================ */
+.loading {
+  padding: 48px;
+  text-align: center;
+  color: #718096;
+  font-size: 14px;
+}
+
+.error {
+  padding: 48px;
+  text-align: center;
+  color: #e53e3e;
+  font-size: 14px;
+}
+
+/* ============================================
+   Saving Spinner Animation
+   ============================================ */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.saving-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
