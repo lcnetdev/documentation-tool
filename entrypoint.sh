@@ -9,6 +9,12 @@ fi
 # Ensure docs directory exists
 mkdir -p /app/docs
 
+# Sync dependencies (named volumes may be stale after package.json changes)
+echo "Syncing server dependencies..."
+cd /app/server && npm install --no-audit --no-fund
+echo "Syncing client dependencies..."
+cd /app/client && npm install --no-audit --no-fund
+
 if [ "$NODE_ENV" = "production" ]; then
   echo "Building client for production (BASE_PATH=${VITE_BASE_PATH:-/})..."
   cd /app/client && npx vite build
