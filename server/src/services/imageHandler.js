@@ -12,12 +12,21 @@ function saveUploadedImage(repoPath, file) {
     fs.mkdirSync(imagesDir, { recursive: true });
   }
 
-  const destPath = path.join(imagesDir, file.originalname);
+  // Add timestamp to generic filenames (e.g. pasted images always named "image.png")
+  let filename = file.originalname;
+  const ext = path.extname(filename);
+  const base = path.basename(filename, ext);
+  if (base.toLowerCase() === 'image' || fs.existsSync(path.join(imagesDir, filename))) {
+    const now = Date.now();
+    filename = base + '-' + now + ext;
+  }
+
+  const destPath = path.join(imagesDir, filename);
   // Use copy+unlink instead of rename to work across Docker volume mounts
   fs.copyFileSync(file.path, destPath);
   fs.unlinkSync(file.path);
 
-  return path.join('images', file.originalname);
+  return path.join('images', filename);
 }
 
 /**

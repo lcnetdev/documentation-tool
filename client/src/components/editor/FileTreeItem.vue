@@ -9,6 +9,9 @@
       <span class="tree-arrow">{{ isExpanded ? '&#9662;' : '&#9656;' }}</span>
       <span class="tree-icon folder-icon"></span>
       <span class="tree-name">{{ item.title || item.name }}</span>
+      <button class="tree-delete-btn" title="Delete directory" @click.stop="$emit('delete-dir', item.path)">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+      </button>
     </div>
     <div
       v-else
@@ -30,6 +33,7 @@
         :expanded-dirs="expandedDirs"
         @select="$emit('select', $event)"
         @toggle-dir="$emit('toggle-dir', $event)"
+        @delete-dir="$emit('delete-dir', $event)"
       />
     </ul>
   </li>
@@ -52,7 +56,7 @@ export default {
       default: () => ({})
     }
   },
-  emits: ['select', 'toggle-dir'],
+  emits: ['select', 'toggle-dir', 'delete-dir'],
   computed: {
     isExpanded() {
       return !!this.expandedDirs[this.item.path]
@@ -79,26 +83,26 @@ export default {
   padding: 3px 12px 3px 8px;
   cursor: pointer;
   font-size: 12px;
-  color: #4a5568;
+  color: var(--text-tertiary);
   text-decoration: none;
   transition: background-color 0.1s;
   user-select: none;
 }
 
 .tree-label:hover {
-  background: #edf2f7;
+  background: var(--bg-surface-hover);
 }
 
 .tree-file.active {
-  background: #ebf4ff;
-  color: #2b6cb0;
+  background: var(--color-primary-bg);
+  color: var(--color-primary-dark);
   font-weight: 500;
 }
 
 .tree-arrow {
   width: 14px;
   font-size: 9px;
-  color: #a0aec0;
+  color: var(--text-faint);
   flex-shrink: 0;
 }
 
@@ -127,6 +131,27 @@ export default {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  flex: 1;
+}
+
+.tree-delete-btn {
+  display: none;
+  background: none;
+  border: none;
+  color: var(--text-faint);
+  cursor: pointer;
+  padding: 2px 4px;
+  margin-left: auto;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.tree-delete-btn:hover {
+  color: var(--color-error, #e53e3e);
+}
+
+.tree-dir:hover .tree-delete-btn {
+  display: block;
 }
 
 .tree-children {

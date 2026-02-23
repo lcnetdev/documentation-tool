@@ -31,9 +31,19 @@
   <div v-else class="editor-layout">
     <aside v-show="!sidebarCollapsed" class="editor-filetree">
       <div class="filetree-header">
-        <h3>{{ repoName }}</h3>
+        <div class="filetree-title-row">
+          <h3>{{ displayName }}</h3>
+          <div v-if="isBranch" class="branch-badge" :title="'Branch of ' + parentRepo">
+            &#x2937; {{ branchDisplayName }}
+          </div>
+        </div>
         <div class="filetree-actions">
           <button class="new-btn" @click="showCreateModal = true" title="Create new file or directory">+ New</button>
+          <button v-if="isOriginal" class="branch-btn" @click="showBranchModal = true" title="Create a branch">Branch</button>
+          <button v-if="isBranch" class="merge-btn" @click="showMergeModal = true" title="Merge branch into original">Merge</button>
+          <button class="theme-toggle" @click="onToggleTheme" :title="currentTheme === 'dark' ? 'Day Mode' : 'Night Mode'">
+            {{ currentTheme === 'dark' ? '&#x2600;' : '&#x263E;' }}
+          </button>
           <button class="logout-btn" @click="handleLogout">Logout</button>
           <button class="collapse-btn" @click="sidebarCollapsed = true" title="Collapse file tree">
             &#x2039;
@@ -45,6 +55,7 @@
         :repo-name="repoName"
         :current-file="currentFile"
         @select="onFileSelect"
+        @delete-dir="onDeleteDir"
       />
     </aside>
     <div class="editor-main">
@@ -52,7 +63,7 @@
         &#x203A;
       </button>
       <div class="editor-pane">
-        <EditorToolbar @action="onToolbarAction" />
+        <EditorToolbar @action="onToolbarAction" @delete="onDeleteFile" />
         <ImageDropZone
           :repo-name="repoName"
           :current-file="currentFile"
@@ -61,7 +72,6 @@
           <MarkdownEditor
             ref="markdownEditor"
             v-model="fileContent"
-            @image-drop="onImageDrop"
             @image-paste="onImagePaste"
           />
         </ImageDropZone>
@@ -86,6 +96,20 @@
       @close="showCreateModal = false"
       @created="onCreated"
     />
+    <BranchModal
+      :visible="showBranchModal"
+      :repo-name="repoName"
+      @close="showBranchModal = false"
+      @created="onBranchCreated"
+    />
+    <MergeModal
+      :visible="showMergeModal"
+      :repo-name="repoName"
+      :parent-repo="parentRepo"
+      :branch-name="branchDisplayName"
+      @close="showMergeModal = false"
+      @merged="onMerged"
+    />
   </div>
 </template>
 
@@ -97,9 +121,12 @@ import LivePreview from '@/components/editor/LivePreview.vue'
 import SaveBar from '@/components/editor/SaveBar.vue'
 import ImageDropZone from '@/components/editor/ImageDropZone.vue'
 import CreateModal from '@/components/editor/CreateModal.vue'
+import BranchModal from '@/components/editor/BranchModal.vue'
+import MergeModal from '@/components/editor/MergeModal.vue'
 import { state as authState, isAuthenticated, login, logout, getAuthHeader } from '@/stores/auth'
 import { computeRelativePath } from '@/utils/relativePath'
 import { apiFetch } from '@/utils/api'
+import { getTheme, toggleTheme } from '@/utils/theme'
 
 export default {
   name: 'EditorLayout',
@@ -110,7 +137,9 @@ export default {
     LivePreview,
     SaveBar,
     ImageDropZone,
-    CreateModal
+    CreateModal,
+    BranchModal,
+    MergeModal
   },
   data() {
     return {
@@ -123,12 +152,19 @@ export default {
       loginPassword: '',
       loginError: '',
       sidebarCollapsed: false,
-      showCreateModal: false
+      showCreateModal: false,
+      showBranchModal: false,
+      showMergeModal: false,
+      repoInfo: null,
+      currentTheme: getTheme()
     }
   },
   computed: {
     repoName() {
       return this.$route.params.repoName
+    },
+    displayName() {
+      return this.formatRepoName(this.repoName)
     },
     currentFile() {
       const pathMatch = this.$route.params.pathMatch
@@ -142,6 +178,18 @@ export default {
     },
     authenticated() {
       return isAuthenticated.value
+    },
+    isBranch() {
+      return this.repoInfo && this.repoInfo.type === 'branch'
+    },
+    isOriginal() {
+      return !this.repoInfo || this.repoInfo.type === 'original'
+    },
+    parentRepo() {
+      return this.repoInfo ? this.repoInfo.parentRepo || '' : ''
+    },
+    branchDisplayName() {
+      return this.repoInfo ? this.repoInfo.branchName || '' : ''
     }
   },
   watch: {
@@ -150,21 +198,50 @@ export default {
         this.loadFile()
       },
       deep: true
+    },
+    repoName: {
+      handler() {
+        this.fetchRepoInfo()
+      },
+      immediate: true
     }
   },
   mounted() {
     if (this.authenticated) {
       this.loadFile()
     }
+    this._onKeydown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault()
+        if (this.hasUnsavedChanges && !this.saving) {
+          this.onSave()
+        }
+      }
+    }
+    window.addEventListener('keydown', this._onKeydown)
+  },
+  beforeUnmount() {
+    if (this._onKeydown) {
+      window.removeEventListener('keydown', this._onKeydown)
+    }
   },
   methods: {
+    formatRepoName(name) {
+      return (name || '')
+        .replace(/\bdocumentation[-_]?/gi, '')
+        .replace(/[-_]+/g, ' ')
+        .trim()
+        .replace(/\b\w/g, c => c.toUpperCase())
+    },
+    onToggleTheme() {
+      this.currentTheme = toggleTheme()
+    },
     async handleLogin() {
       this.loginError = ''
       if (!this.loginUsername || !this.loginPassword) {
         this.loginError = 'Username and password are required'
         return
       }
-      // Validate credentials against the server before storing
       const encoded = btoa(this.loginUsername + ':' + this.loginPassword)
       try {
         const response = await apiFetch(
@@ -176,7 +253,7 @@ export default {
           return
         }
       } catch {
-        // Network error — allow login attempt, will fail on actual operations
+        // Network error — allow login attempt
       }
       login(this.loginUsername, this.loginPassword)
       this.loginUsername = ''
@@ -187,6 +264,23 @@ export default {
       logout()
       const viewPath = '/view/' + this.repoName + '/' + (this.currentFile || '')
       this.$router.push(viewPath)
+    },
+    async fetchRepoInfo() {
+      if (!this.repoName) return
+      try {
+        const response = await apiFetch('/api/repos/' + this.repoName + '/info')
+        if (response.ok) {
+          this.repoInfo = await response.json()
+        }
+      } catch {
+        // ignore
+      }
+    },
+    onBranchCreated(result) {
+      this.$router.push('/edit/' + result.newRepo + '/index.md')
+    },
+    onMerged(result) {
+      this.$router.push('/edit/' + result.parentRepo + '/index.md')
     },
     async loadFile() {
       if (!this.repoName || !this.currentFile) return
@@ -295,10 +389,72 @@ export default {
           throw new Error(errData.message || 'Failed to save file')
         }
         this.originalContent = this.fileContent
+        if (this.$refs.fileTree) {
+          this.$refs.fileTree.fetchTree()
+        }
       } catch (err) {
         alert('Save failed: ' + err.message)
       } finally {
         this.saving = false
+      }
+    },
+    async onDeleteFile() {
+      if (!this.currentFile) return
+      const confirmed = window.confirm(
+        'Delete "' + this.currentFile + '"? This will remove the file and commit the change.'
+      )
+      if (!confirmed) return
+      try {
+        const response = await apiFetch(
+          '/api/repos/' + this.repoName + '/file/' + this.currentFile,
+          {
+            method: 'DELETE',
+            headers: {
+              'Authorization': getAuthHeader()
+            }
+          }
+        )
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({}))
+          throw new Error(errData.error || 'Failed to delete file')
+        }
+        if (this.$refs.fileTree) {
+          this.$refs.fileTree.fetchTree()
+        }
+        this.$router.push('/edit/' + this.repoName + '/index.md')
+      } catch (err) {
+        alert('Delete failed: ' + err.message)
+      }
+    },
+    async onDeleteDir(dirPath) {
+      if (!dirPath) return
+      const confirmed = window.confirm(
+        'Delete directory "' + dirPath + '" and all its contents? This will commit the change.'
+      )
+      if (!confirmed) return
+      try {
+        const response = await apiFetch(
+          '/api/repos/' + this.repoName + '/directory/' + dirPath,
+          {
+            method: 'DELETE',
+            headers: {
+              'Authorization': getAuthHeader()
+            }
+          }
+        )
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({}))
+          throw new Error(errData.error || 'Failed to delete directory')
+        }
+        if (this.$refs.fileTree) {
+          this.$refs.fileTree.fetchTree()
+        }
+        // If currently editing a file inside the deleted directory, navigate away
+        if (this.currentFile && this.currentFile.startsWith(dirPath + '/')) {
+          this.$router.push('/edit/' + this.repoName + '/index.md')
+        }
+      } catch (err) {
+        alert('Delete failed: ' + err.message)
       }
     }
   }
@@ -306,226 +462,37 @@ export default {
 </script>
 
 <style scoped>
-.login-overlay {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 100vh;
-  background: #f0f2f5;
-}
-
-.login-card {
-  background: #fff;
-  padding: 40px;
-  border-radius: 8px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
-  width: 100%;
-  max-width: 400px;
-}
-
-.login-card h2 {
-  margin: 0 0 24px 0;
-  font-size: 20px;
-  color: #1a202c;
-  text-align: center;
-}
-
-.form-group {
-  margin-bottom: 16px;
-}
-
-.form-group label {
-  display: block;
-  margin-bottom: 4px;
-  font-size: 13px;
-  font-weight: 500;
-  color: #4a5568;
-}
-
-.form-group input {
-  width: 100%;
-  padding: 8px 12px;
-  border: 1px solid #e2e8f0;
-  border-radius: 4px;
-  font-size: 14px;
-  box-sizing: border-box;
-}
-
-.form-group input:focus {
-  outline: none;
-  border-color: #4a90d9;
-  box-shadow: 0 0 0 3px rgba(74, 144, 217, 0.1);
-}
-
-.login-error {
-  color: #e53e3e;
-  font-size: 13px;
-  margin-bottom: 12px;
-}
-
-.login-btn {
-  width: 100%;
-  padding: 10px;
-  background: #4a90d9;
-  color: #fff;
-  border: none;
-  border-radius: 4px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.login-btn:hover {
-  background: #357abd;
-}
-
-.editor-layout {
-  display: flex;
-  height: 100vh;
-  overflow: hidden;
-}
-
-.editor-filetree {
-  width: 250px;
-  min-width: 250px;
-  background: #fff;
-  border-right: 1px solid #e2e8f0;
-  display: flex;
-  flex-direction: column;
-  overflow-y: auto;
-}
-
-.filetree-header {
-  padding: 12px 16px;
-  border-bottom: 1px solid #e2e8f0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.filetree-header h3 {
-  margin: 0;
-  font-size: 13px;
-  font-weight: 600;
-  color: #1a202c;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.filetree-actions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-}
-
-.collapse-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  background: #edf2f7;
-  border: 1px solid #e2e8f0;
-  border-radius: 4px;
-  cursor: pointer;
-  color: #4a5568;
-  font-size: 16px;
-  font-weight: bold;
-  line-height: 1;
-  flex-shrink: 0;
-}
-
-.collapse-btn:hover {
-  background: #e2e8f0;
-}
-
-.expand-btn-editor {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  background: #f7fafc;
-  border: none;
-  border-right: 1px solid #e2e8f0;
-  cursor: pointer;
-  color: #4a5568;
-  font-size: 16px;
-  font-weight: bold;
-  flex-shrink: 0;
-}
-
-.expand-btn-editor:hover {
-  background: #edf2f7;
-}
-
-.new-btn {
-  padding: 2px 8px;
-  font-size: 11px;
-  background: #4a90d9;
-  border: 1px solid #357abd;
-  border-radius: 3px;
-  cursor: pointer;
-  color: #fff;
-  font-weight: 500;
-}
-
-.new-btn:hover {
-  background: #357abd;
-}
-
-.logout-btn {
-  padding: 2px 8px;
-  font-size: 11px;
-  background: transparent;
-  border: 1px solid #e2e8f0;
-  border-radius: 3px;
-  cursor: pointer;
-  color: #718096;
-}
-
-.logout-btn:hover {
-  background: #fee;
-  border-color: #e53e3e;
-  color: #e53e3e;
-}
-
-.editor-main {
-  flex: 1;
-  display: flex;
-  min-width: 0;
-  height: calc(100vh - 52px);
-  overflow: hidden;
-}
-
-.editor-pane {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  min-height: 0;
-  border-right: 1px solid #e2e8f0;
-  overflow: hidden;
-}
-
-.preview-pane {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  min-height: 0;
-  overflow-y: auto;
-}
-
-.preview-header {
-  padding: 8px 16px;
-  font-size: 12px;
-  font-weight: 600;
-  color: #718096;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  border-bottom: 1px solid #e2e8f0;
-  background: #f7fafc;
-}
+.login-overlay { display: flex; align-items: center; justify-content: center; min-height: 100vh; background: var(--bg-login); }
+.login-card { background: var(--bg-surface); padding: 40px; border-radius: 8px; box-shadow: var(--shadow-md); width: 100%; max-width: 400px; }
+.login-card h2 { margin: 0 0 24px 0; font-size: 20px; color: var(--text-primary); text-align: center; }
+.form-group { margin-bottom: 16px; }
+.form-group label { display: block; margin-bottom: 4px; font-size: 13px; font-weight: 500; color: var(--text-tertiary); }
+.form-group input { width: 100%; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 14px; box-sizing: border-box; background: var(--bg-surface); color: var(--text-primary); }
+.form-group input:focus { outline: none; border-color: var(--color-primary); box-shadow: 0 0 0 3px rgba(74, 144, 217, 0.1); }
+.login-error { color: var(--color-error); font-size: 13px; margin-bottom: 12px; }
+.login-btn { width: 100%; padding: 10px; background: var(--color-primary); color: #fff; border: none; border-radius: 4px; font-size: 14px; font-weight: 500; cursor: pointer; }
+.login-btn:hover { background: var(--color-primary-hover); }
+.editor-layout { display: flex; height: 100vh; overflow: hidden; }
+.editor-filetree { width: 250px; min-width: 250px; background: var(--bg-surface); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; overflow-y: auto; }
+.filetree-header { padding: 12px 16px; border-bottom: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 8px; }
+.filetree-title-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.filetree-header h3 { margin: 0; font-size: 13px; font-weight: 600; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.branch-badge { font-size: 10px; padding: 2px 6px; background: var(--color-badge-bg); color: var(--color-badge-text); border-radius: 3px; white-space: nowrap; flex-shrink: 0; }
+.filetree-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.collapse-btn { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; background: var(--bg-surface-hover); border: 1px solid var(--border-color); border-radius: 4px; cursor: pointer; color: var(--text-tertiary); font-size: 16px; font-weight: bold; line-height: 1; flex-shrink: 0; }
+.collapse-btn:hover { background: var(--bg-surface-active); }
+.expand-btn-editor { display: flex; align-items: center; justify-content: center; width: 24px; background: var(--bg-surface-alt); border: none; border-right: 1px solid var(--border-color); cursor: pointer; color: var(--text-tertiary); font-size: 16px; font-weight: bold; flex-shrink: 0; }
+.expand-btn-editor:hover { background: var(--bg-surface-hover); }
+.new-btn { padding: 2px 8px; font-size: 11px; background: var(--color-primary); border: 1px solid var(--color-primary-hover); border-radius: 3px; cursor: pointer; color: #fff; font-weight: 500; }
+.new-btn:hover { background: var(--color-primary-hover); }
+.branch-btn { padding: 2px 8px; font-size: 11px; background: var(--bg-surface-hover); border: 1px solid var(--border-color); border-radius: 3px; cursor: pointer; color: var(--text-tertiary); font-weight: 500; }
+.branch-btn:hover { background: var(--bg-surface-active); }
+.merge-btn { padding: 2px 8px; font-size: 11px; background: var(--color-badge-bg); border: 1px solid var(--color-badge-border); border-radius: 3px; cursor: pointer; color: var(--color-badge-text); font-weight: 500; }
+.merge-btn:hover { background: var(--color-badge-hover); }
+.logout-btn { padding: 2px 8px; font-size: 11px; background: transparent; border: 1px solid var(--border-color); border-radius: 3px; cursor: pointer; color: var(--text-muted); }
+.logout-btn:hover { background: var(--color-error-bg); border-color: var(--color-error); color: var(--color-error); }
+.editor-main { flex: 1; display: flex; min-width: 0; height: calc(100vh - 52px); overflow: hidden; }
+.editor-pane { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; border-right: 1px solid var(--border-color); overflow: hidden; }
+.preview-pane { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow-y: auto; }
+.preview-header { padding: 8px 16px; font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--border-color); background: var(--bg-surface-alt); }
 </style>

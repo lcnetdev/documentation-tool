@@ -83,7 +83,7 @@ export default {
   padding: 4px 12px 4px 16px;
   cursor: pointer;
   font-size: 13px;
-  color: #4a5568;
+  color: var(--text-tertiary);
   text-decoration: none;
   border-radius: 0;
   transition: background-color 0.1s;
@@ -91,19 +91,19 @@ export default {
 }
 
 .tree-label:hover {
-  background: #edf2f7;
+  background: var(--bg-surface-hover);
 }
 
 .tree-file.active {
-  background: #ebf4ff;
-  color: #2b6cb0;
+  background: var(--color-primary-bg);
+  color: var(--color-primary-dark);
   font-weight: 500;
 }
 
 .tree-arrow {
   width: 16px;
   font-size: 10px;
-  color: #a0aec0;
+  color: var(--text-faint);
   flex-shrink: 0;
 }
 

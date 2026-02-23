@@ -16,7 +16,7 @@
         @keydown="onKeydown"
         @scroll="syncScroll"
         @paste="onPaste"
-        spellcheck="false"
+        spellcheck="true"
       ></textarea>
     </div>
   </div>
@@ -85,16 +85,7 @@ export default {
         return
       }
 
-      // Image file dropped from OS
-      const files = e.dataTransfer.files
-      if (files && files.length > 0) {
-        for (let i = 0; i < files.length; i++) {
-          if (files[i].type.startsWith('image/')) {
-            this.$emit('image-drop', files[i])
-            return
-          }
-        }
-      }
+      // Image file drops from OS are handled by the parent ImageDropZone
     },
     onDragOver(e) {
       this.isDragOver = true
@@ -170,14 +161,14 @@ export default {
 }
 
 .editor-container.drag-over {
-  border-color: #4a90d9;
-  background: #ebf8ff;
+  border-color: var(--editor-drag-border);
+  background: var(--editor-drag-bg);
 }
 
 .line-numbers {
   width: 48px;
-  background: #f7fafc;
-  border-right: 1px solid #e2e8f0;
+  background: var(--editor-line-bg);
+  border-right: 1px solid var(--border-color);
   padding: 12px 0;
   overflow: hidden;
   flex-shrink: 0;
@@ -189,7 +180,7 @@ export default {
   font-family: 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 13px;
   line-height: 1.6;
-  color: #a0aec0;
+  color: var(--editor-line-color);
   height: 20.8px;
 }
 
@@ -202,8 +193,8 @@ export default {
   font-family: 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 13px;
   line-height: 1.6;
-  color: #1a202c;
-  background: #fff;
+  color: var(--text-primary);
+  background: var(--bg-surface);
   tab-size: 2;
   white-space: pre;
   overflow-wrap: normal;
@@ -213,6 +204,6 @@ export default {
 }
 
 .editor-textarea::placeholder {
-  color: #cbd5e0;
+  color: var(--border-medium);
 }
 </style>

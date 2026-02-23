@@ -84,6 +84,48 @@ class GitService {
   async pull() {
     return await this.git.pull();
   }
+
+  /**
+   * Create a new local branch and switch to it.
+   */
+  async checkoutNewBranch(branchName) {
+    await this.git.checkoutLocalBranch(branchName);
+  }
+
+  /**
+   * Push a new branch to remote with upstream tracking.
+   */
+  async pushNewBranch(branchName) {
+    await this.git.push(['-u', 'origin', branchName]);
+  }
+
+  /**
+   * Stage all changes, commit, and push. Used for merge operations.
+   */
+  async commitAll(message, username) {
+    const authorName = username || 'Documentation Tool';
+    const authorEmail = `${username || 'editor'}@documentation-tool`;
+
+    await this.git
+      .addConfig('user.name', authorName)
+      .addConfig('user.email', authorEmail);
+
+    await this.git.add('.');
+    await this.git.commit(message, {
+      '--author': `${authorName} <${authorEmail}>`
+    });
+
+    try {
+      await this.git.push();
+    } catch (pushError) {
+      console.log('Push failed, attempting pull --rebase and retry...');
+      await this.git.pull({ '--rebase': 'true' });
+      await this.git.push();
+    }
+
+    const log = await this.git.log({ maxCount: 1 });
+    return log.latest.hash;
+  }
 }
 
 module.exports = GitService;

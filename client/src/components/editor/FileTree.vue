@@ -11,6 +11,7 @@
         :expanded-dirs="expandedDirs"
         @select="$emit('select', $event)"
         @toggle-dir="toggleDir"
+        @delete-dir="$emit('delete-dir', $event)"
       />
     </ul>
   </div>
@@ -35,7 +36,7 @@ export default {
       default: ''
     }
   },
-  emits: ['select'],
+  emits: ['select', 'delete-dir'],
   data() {
     return {
       tree: [],
@@ -106,11 +107,11 @@ export default {
 .tree-error {
   padding: 16px;
   font-size: 13px;
-  color: #718096;
+  color: var(--text-muted);
 }
 
 .tree-error {
-  color: #e53e3e;
+  color: var(--color-error);
 }
 
 .tree-root {

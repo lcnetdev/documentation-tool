@@ -20,6 +20,19 @@ export function createMarkdownRenderer(repoName, currentFilePath, mode) {
 
   md.use(markdownItAnchor)
 
+  // Custom fence renderer for mermaid blocks
+  const defaultFence = md.renderer.rules.fence
+  md.renderer.rules.fence = function (tokens, idx, options, env, self) {
+    const token = tokens[idx]
+    if (token.info.trim().toLowerCase() === 'mermaid') {
+      return '<pre class="mermaid">' + escapeHtml(token.content) + '</pre>'
+    }
+    if (defaultFence) {
+      return defaultFence(tokens, idx, options, env, self)
+    }
+    return self.renderToken(tokens, idx, options)
+  }
+
   // Store default renderers
   const defaultImageRender = md.renderer.rules.image || function (tokens, idx, options, env, self) {
     return self.renderToken(tokens, idx, options)
@@ -56,13 +69,22 @@ export function createMarkdownRenderer(repoName, currentFilePath, mode) {
       token.attrPush(['class', 'doc-image'])
     }
 
-    // Get alt text
-    const alt = token.content || ''
+    // Get alt text from children tokens (markdown-it stores alt as inline children)
+    const alt = token.children ? md.renderer.renderInlineAsText(token.children, options, env) : (token.content || '')
+    // Remove the empty alt attr that markdown-it adds by default, we set it manually
+    const altIndex = token.attrIndex('alt')
+    if (altIndex >= 0) {
+      token.attrs.splice(altIndex, 1)
+    }
     const attrs = token.attrs.map(function (attr) {
       return attr[0] + '="' + escapeHtml(attr[1]) + '"'
     }).join(' ')
 
-    return '<img ' + attrs + ' alt="' + escapeHtml(alt) + '" />'
+    const imgTag = '<img ' + attrs + ' alt="' + escapeHtml(alt) + '" title="' + escapeHtml(alt) + '" />'
+    if (alt && alt.toLowerCase() !== 'image') {
+      return '<figure class="doc-figure">' + imgTag + '<figcaption>' + escapeHtml(alt) + '</figcaption></figure>'
+    }
+    return imgTag
   }
 
   // Custom link renderer

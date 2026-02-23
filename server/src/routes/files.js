@@ -4,27 +4,56 @@ const fs = require('fs');
 const config = require('../config');
 const { getTree, readFile, parseNav } = require('../services/fileTree');
 const { getStatus } = require('../services/pdfGenerator');
+const RepoMeta = require('../services/repoMeta');
 
 const router = express.Router();
+const repoMeta = new RepoMeta();
 
 /**
  * GET /repos
- * List all repos (directories in docs/).
+ * List all repos with metadata (type, branches).
  */
 router.get('/', (req, res) => {
   try {
-    if (!fs.existsSync(config.docsDir)) {
-      return res.json([]);
-    }
+    const all = repoMeta.listAll();
 
-    const entries = fs.readdirSync(config.docsDir, { withFileTypes: true });
-    const repos = entries
-      .filter((e) => e.isDirectory() && e.name !== '.git')
-      .map((e) => e.name);
+    // Enrich original repos with their branches list
+    const result = all.map(repo => {
+      if (repo.type === 'original') {
+        return { ...repo, branches: repoMeta.getBranches(repo.name) };
+      }
+      return repo;
+    });
 
-    res.json(repos);
+    res.json(result);
   } catch (err) {
     res.status(500).json({ error: 'Failed to list repos', details: err.message });
+  }
+});
+
+/**
+ * GET /repos/:repoName/info
+ * Return metadata for a single repo.
+ */
+router.get('/:repoName/info', (req, res) => {
+  try {
+    const repoName = req.params.repoName;
+    const repoPath = path.join(config.docsDir, repoName);
+
+    if (!fs.existsSync(repoPath)) {
+      return res.status(404).json({ error: 'Repository not found' });
+    }
+
+    const info = repoMeta.get(repoName) || { type: 'original' };
+    const result = { name: repoName, ...info };
+
+    if (result.type === 'original') {
+      result.branches = repoMeta.getBranches(repoName);
+    }
+
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to get repo info', details: err.message });
   }
 });
 

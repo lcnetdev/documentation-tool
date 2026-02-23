@@ -143,3 +143,6 @@ docs/
 
 # Generated PDF cache
 .pdf-cache/
+
+# Backup zips (keep directory, ignore contents)
+docs_backup/*.zip

@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import HomeView from '@/views/HomeView.vue'
 import ViewerLayout from '@/views/ViewerLayout.vue'
 import EditorLayout from '@/views/EditorLayout.vue'
 import { basePath } from '@/utils/basePath'
@@ -6,7 +7,8 @@ import { basePath } from '@/utils/basePath'
 const routes = [
   {
     path: '/',
-    redirect: '/view/documentation-marva-manual/index.md'
+    name: 'home',
+    component: HomeView
   },
   {
     path: '/view/:repoName/:pathMatch(.*)',

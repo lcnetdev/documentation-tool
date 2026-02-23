@@ -56,8 +56,8 @@ export default {
   bottom: 0;
   left: 0;
   right: 0;
-  background: #1a202c;
-  border-top: 1px solid #2d3748;
+  background: var(--savebar-bg);
+  border-top: 1px solid var(--savebar-border);
   z-index: 100;
 }
 
@@ -72,25 +72,25 @@ export default {
 .commit-input {
   flex: 1;
   padding: 6px 12px;
-  border: 1px solid #4a5568;
+  border: 1px solid var(--savebar-input-border);
   border-radius: 4px;
-  background: #2d3748;
-  color: #e2e8f0;
+  background: var(--savebar-input-bg);
+  color: var(--savebar-input-color);
   font-size: 13px;
   outline: none;
 }
 
 .commit-input:focus {
-  border-color: #4a90d9;
+  border-color: var(--color-primary);
 }
 
 .commit-input::placeholder {
-  color: #718096;
+  color: var(--text-muted);
 }
 
 .save-btn {
   padding: 6px 20px;
-  background: #48bb78;
+  background: var(--color-success);
   color: #fff;
   border: none;
   border-radius: 4px;
@@ -104,7 +104,7 @@ export default {
 }
 
 .save-btn:hover:not(:disabled) {
-  background: #38a169;
+  background: var(--color-success-hover);
 }
 
 .save-btn:disabled {

@@ -460,6 +460,7 @@ function renderMarkdownFile(doc, repoPath, filePath, destinations) {
   const lines = content.split('\n');
 
   let inCodeBlock = false;
+  let codeBlockLang = '';
   let codeLines = [];
   let inList = false;
 
@@ -469,21 +470,35 @@ function renderMarkdownFile(doc, repoPath, filePath, destinations) {
     // Fenced code blocks
     if (line.trimStart().startsWith('```')) {
       if (inCodeBlock) {
-        // End code block — render accumulated lines
-        const codeText = codeLines.join('\n');
-        if (codeText.trim()) {
-          doc.fontSize(CODE_SIZE).font('Courier');
-          doc.fillColor('#334155')
-            .text(codeText, MARGIN + 8, undefined, { width: CONTENT_WIDTH - 16 });
-          doc.fillColor('#1a202c');
+        // End code block
+        if (codeBlockLang === 'mermaid') {
+          // Mermaid diagram placeholder
+          doc.fontSize(BODY_SIZE).font('Helvetica-Oblique');
+          doc.fillColor('#718096')
+            .text('<Workflow_Diagram_Here>', MARGIN, undefined, {
+              width: CONTENT_WIDTH,
+              align: 'center'
+            });
+          doc.fillColor('#1a202c').font('Helvetica');
+        } else {
+          // Regular code block — render accumulated lines
+          const codeText = codeLines.join('\n');
+          if (codeText.trim()) {
+            doc.fontSize(CODE_SIZE).font('Courier');
+            doc.fillColor('#334155')
+              .text(codeText, MARGIN + 8, undefined, { width: CONTENT_WIDTH - 16 });
+            doc.fillColor('#1a202c');
+          }
         }
         doc.moveDown(0.5);
         codeLines = [];
         inCodeBlock = false;
+        codeBlockLang = '';
         doc.font('Helvetica');
         continue;
       } else {
         inCodeBlock = true;
+        codeBlockLang = line.trimStart().replace(/^```/, '').trim().toLowerCase();
         codeLines = [];
         doc.moveDown(0.3);
         continue;

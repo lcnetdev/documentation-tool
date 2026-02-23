@@ -109,11 +109,11 @@ export default {
 .sidebar-error {
   padding: 16px;
   font-size: 13px;
-  color: #718096;
+  color: var(--text-muted);
 }
 
 .sidebar-error {
-  color: #e53e3e;
+  color: var(--color-error);
 }
 
 .tree-root {

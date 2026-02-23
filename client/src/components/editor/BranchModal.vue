@@ -1,43 +1,30 @@
 <template>
   <div v-if="visible" class="modal-overlay" @click.self="$emit('close')">
     <div class="modal-card">
-      <h3 class="modal-title">Create New</h3>
-      <div class="type-toggle">
-        <button
-          class="type-btn"
-          :class="{ active: createType === 'file' }"
-          @click="createType = 'file'"
-        >File</button>
-        <button
-          class="type-btn"
-          :class="{ active: createType === 'directory' }"
-          @click="createType = 'directory'"
-        >Directory</button>
-      </div>
+      <h3 class="modal-title">Create Branch</h3>
+      <p class="modal-desc">
+        Create a working copy of <strong>{{ repoName }}</strong> to edit independently.
+      </p>
       <div class="form-group">
-        <label for="create-parent">Parent Directory</label>
-        <select id="create-parent" v-model="parentDir" class="form-select">
-          <option value="">(root)</option>
-          <option v-for="dir in directories" :key="dir" :value="dir">{{ dir }}</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label for="create-name">{{ createType === 'file' ? 'File Name' : 'Directory Name' }}</label>
+        <label for="branch-name">Branch Name</label>
         <input
-          id="create-name"
-          v-model="itemName"
+          id="branch-name"
+          v-model="branchName"
           type="text"
-          :placeholder="createType === 'file' ? 'new-page.md' : 'new-section'"
+          placeholder="e.g. Draft V2"
           class="form-input"
           @keydown.enter="onCreate"
         />
+        <div v-if="branchName.trim()" class="form-hint">
+          Directory: {{ repoName }}--{{ normalized }}
+        </div>
         <div v-if="validationError" class="form-error">{{ validationError }}</div>
       </div>
       <div v-if="serverError" class="form-error server-error">{{ serverError }}</div>
       <div class="modal-actions">
         <button class="btn-cancel" @click="$emit('close')">Cancel</button>
         <button class="btn-create" :disabled="creating" @click="onCreate">
-          {{ creating ? 'Creating...' : 'Create' }}
+          {{ creating ? 'Creating...' : 'Create Branch' }}
         </button>
       </div>
     </div>
@@ -49,7 +36,7 @@ import { getAuthHeader } from '@/stores/auth'
 import { apiFetch } from '@/utils/api'
 
 export default {
-  name: 'CreateModal',
+  name: 'BranchModal',
   props: {
     visible: {
       type: Boolean,
@@ -58,103 +45,68 @@ export default {
     repoName: {
       type: String,
       required: true
-    },
+    }
   },
   emits: ['close', 'created'],
   data() {
     return {
-      createType: 'file',
-      parentDir: '',
-      itemName: '',
+      branchName: '',
       creating: false,
-      serverError: '',
-      tree: []
+      serverError: ''
     }
   },
   computed: {
-    directories() {
-      const dirs = []
-      const walk = (items, prefix) => {
-        for (const item of items) {
-          if (item.type === 'directory') {
-            const dirPath = prefix ? prefix + '/' + item.name : item.name
-            dirs.push(dirPath)
-            if (item.children) {
-              walk(item.children, dirPath)
-            }
-          }
-        }
-      }
-      walk(this.tree, '')
-      return dirs
+    normalized() {
+      return this.branchName.trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '')
+        .slice(0, 60)
     },
     validationError() {
-      if (!this.itemName) return ''
-      const name = this.itemName.trim()
+      const name = this.branchName.trim()
+      if (!name) return ''
       if (name.includes('..')) return 'Name cannot contain ".."'
       if (name.includes('/') || name.includes('\\')) return 'Name cannot contain path separators'
-      if (this.createType === 'file' && !name.endsWith('.md') && name.includes('.')) {
-        return 'File must have .md extension'
-      }
+      if (this.normalized.length < 2) return 'Name must be at least 2 characters'
       return ''
     }
   },
   watch: {
     visible(val) {
       if (val) {
-        this.itemName = ''
-        this.parentDir = ''
-        this.createType = 'file'
+        this.branchName = ''
         this.serverError = ''
-        this.fetchTree()
       }
     }
   },
   methods: {
-    async fetchTree() {
-      try {
-        const response = await apiFetch('/api/repos/' + this.repoName + '/tree')
-        if (response.ok) {
-          this.tree = await response.json()
-        }
-      } catch {
-        // ignore
-      }
-    },
     async onCreate() {
-      const name = this.itemName.trim()
-      if (!name) return
-      if (this.validationError) return
-
-      let finalName = name
-      if (this.createType === 'file' && !finalName.endsWith('.md')) {
-        finalName = finalName + '.md'
-      }
-
-      const fullPath = this.parentDir ? this.parentDir + '/' + finalName : finalName
+      const name = this.branchName.trim()
+      if (!name || this.validationError) return
 
       this.creating = true
       this.serverError = ''
       try {
         const response = await apiFetch(
-          '/api/repos/' + this.repoName + '/create',
+          '/api/repos/' + this.repoName + '/branch',
           {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
               'Authorization': getAuthHeader()
             },
-            body: JSON.stringify({
-              path: fullPath,
-              type: this.createType
-            })
+            body: JSON.stringify({ branchName: name })
           }
         )
         if (!response.ok) {
           const data = await response.json().catch(() => ({}))
-          throw new Error(data.error || 'Failed to create')
+          throw new Error(data.error || 'Failed to create branch')
         }
-        this.$emit('created', { path: fullPath, type: this.createType })
+        const result = await response.json()
+        this.$emit('created', result)
         this.$emit('close')
       } catch (err) {
         this.serverError = err.message
@@ -187,39 +139,16 @@ export default {
 }
 
 .modal-title {
-  margin: 0 0 16px 0;
+  margin: 0 0 8px 0;
   font-size: 16px;
   font-weight: 600;
   color: var(--text-primary);
 }
 
-.type-toggle {
-  display: flex;
-  gap: 0;
-  margin-bottom: 16px;
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.type-btn {
-  flex: 1;
-  padding: 6px 12px;
+.modal-desc {
+  margin: 0 0 16px 0;
   font-size: 13px;
-  border: none;
-  background: var(--bg-surface);
-  color: var(--text-tertiary);
-  cursor: pointer;
-  font-weight: 500;
-}
-
-.type-btn.active {
-  background: var(--color-primary);
-  color: #fff;
-}
-
-.type-btn:not(.active):hover {
-  background: var(--bg-surface-hover);
+  color: var(--text-muted);
 }
 
 .form-group {
@@ -234,7 +163,6 @@ export default {
   color: var(--text-tertiary);
 }
 
-.form-select,
 .form-input {
   width: 100%;
   padding: 6px 10px;
@@ -246,11 +174,17 @@ export default {
   color: var(--text-primary);
 }
 
-.form-select:focus,
 .form-input:focus {
   outline: none;
   border-color: var(--color-primary);
   box-shadow: 0 0 0 2px rgba(74, 144, 217, 0.15);
+}
+
+.form-hint {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--text-faint);
+  font-family: 'SF Mono', SFMono-Regular, Menlo, monospace;
 }
 
 .form-error {

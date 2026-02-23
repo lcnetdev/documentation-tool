@@ -105,8 +105,8 @@ export default {
 .drop-indicator {
   position: absolute;
   inset: 0;
-  background: rgba(74, 144, 217, 0.1);
-  border: 2px dashed #4a90d9;
+  background: var(--drop-bg);
+  border: 2px dashed var(--color-primary);
   border-radius: 4px;
   display: flex;
   align-items: center;
@@ -117,11 +117,11 @@ export default {
 
 .drop-indicator-text {
   padding: 12px 24px;
-  background: #fff;
+  background: var(--drop-text-bg);
   border-radius: 8px;
   font-size: 14px;
   font-weight: 500;
-  color: #4a90d9;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  color: var(--color-primary);
+  box-shadow: var(--shadow-md);
 }
 </style>

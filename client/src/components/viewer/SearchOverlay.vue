@@ -147,7 +147,7 @@ export default {
 .search-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--bg-overlay-blur);
   backdrop-filter: blur(4px);
   display: flex;
   align-items: flex-start;
@@ -157,9 +157,9 @@ export default {
 }
 
 .search-modal {
-  background: #fff;
+  background: var(--bg-surface);
   border-radius: 12px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--shadow-xl);
   width: 100%;
   max-width: 640px;
   max-height: 60vh;
@@ -172,7 +172,7 @@ export default {
   display: flex;
   align-items: center;
   padding: 16px;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .search-input {
@@ -181,21 +181,22 @@ export default {
   font-size: 16px;
   outline: none;
   padding: 4px 0;
-  color: #1a202c;
+  color: var(--text-primary);
+  background: transparent;
 }
 
 .search-input::placeholder {
-  color: #a0aec0;
+  color: var(--text-faint);
 }
 
 .search-close {
   padding: 4px 8px;
   font-size: 11px;
-  background: #edf2f7;
-  border: 1px solid #e2e8f0;
+  background: var(--bg-surface-hover);
+  border: 1px solid var(--border-color);
   border-radius: 4px;
   cursor: pointer;
-  color: #718096;
+  color: var(--text-muted);
   margin-left: 12px;
 }
 
@@ -208,14 +209,14 @@ export default {
 .search-status {
   padding: 24px 16px;
   text-align: center;
-  color: #718096;
+  color: var(--text-muted);
   font-size: 14px;
 }
 
 .match-count {
   padding: 4px 16px 8px;
   font-size: 12px;
-  color: #a0aec0;
+  color: var(--text-faint);
 }
 
 .result-group {
@@ -226,19 +227,19 @@ export default {
   padding: 8px 16px;
   font-size: 13px;
   font-weight: 600;
-  color: #2b6cb0;
+  color: var(--color-primary-dark);
   cursor: pointer;
   font-family: 'SF Mono', SFMono-Regular, Menlo, monospace;
 }
 
 .result-file:hover {
-  background: #ebf8ff;
+  background: var(--color-primary-bg-alt);
 }
 
 .result-line {
   padding: 4px 16px 4px 32px;
   font-size: 13px;
-  color: #4a5568;
+  color: var(--text-tertiary);
   cursor: pointer;
   display: flex;
   align-items: baseline;
@@ -246,11 +247,11 @@ export default {
 }
 
 .result-line:hover {
-  background: #f7fafc;
+  background: var(--bg-surface-alt);
 }
 
 .line-number {
-  color: #a0aec0;
+  color: var(--text-faint);
   font-size: 11px;
   font-family: 'SF Mono', SFMono-Regular, Menlo, monospace;
   flex-shrink: 0;
@@ -267,8 +268,8 @@ export default {
 }
 
 .line-text :deep(mark) {
-  background: #fefcbf;
-  color: #744210;
+  background: var(--highlight-bg);
+  color: var(--highlight-color);
   padding: 1px 2px;
   border-radius: 2px;
 }

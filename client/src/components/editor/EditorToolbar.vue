@@ -9,13 +9,21 @@
     >
       {{ btn.icon }}
     </button>
+    <div class="toolbar-spacer"></div>
+    <button
+      class="toolbar-btn toolbar-delete"
+      title="Delete this file"
+      @click="$emit('delete')"
+    >
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+    </button>
   </div>
 </template>
 
 <script>
 export default {
   name: 'EditorToolbar',
-  emits: ['action'],
+  emits: ['action', 'delete'],
   data() {
     return {
       buttons: [
@@ -43,8 +51,8 @@ export default {
   display: flex;
   align-items: center;
   padding: 4px 8px;
-  background: #f7fafc;
-  border-bottom: 1px solid #e2e8f0;
+  background: var(--bg-surface-alt);
+  border-bottom: 1px solid var(--border-color);
   gap: 2px;
   flex-wrap: wrap;
 }
@@ -62,16 +70,30 @@ export default {
   cursor: pointer;
   font-size: 13px;
   font-weight: 600;
-  color: #4a5568;
+  color: var(--text-tertiary);
   transition: all 0.1s;
 }
 
 .toolbar-btn:hover {
-  background: #edf2f7;
-  border-color: #e2e8f0;
+  background: var(--bg-surface-hover);
+  border-color: var(--border-color);
 }
 
 .toolbar-btn:active {
-  background: #e2e8f0;
+  background: var(--bg-surface-active);
+}
+
+.toolbar-spacer {
+  flex: 1;
+}
+
+.toolbar-delete {
+  color: var(--text-faint);
+}
+
+.toolbar-delete:hover {
+  color: var(--color-error);
+  background: var(--color-error-bg);
+  border-color: var(--color-error);
 }
 </style>

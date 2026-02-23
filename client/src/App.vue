@@ -5,6 +5,8 @@
 </template>
 
 <script>
+import '@/utils/theme'
+
 export default {
   name: 'App'
 }

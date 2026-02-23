@@ -7,6 +7,7 @@ const apiRouter = require('./routes/api');
 const GitService = require('./services/git');
 const SearchService = require('./services/search');
 const { ensurePdf } = require('./services/pdfGenerator');
+const RepoMeta = require('./services/repoMeta');
 
 const app = express();
 
@@ -70,6 +71,11 @@ async function start() {
     console.error('Failed to clone default repo:', err.message);
     console.log('Server will continue without the default repo.');
   }
+
+  // Seed repo metadata for any existing directories
+  const repoMeta = new RepoMeta();
+  repoMeta.seedExisting();
+  console.log('Repo metadata seeded.');
 
   app.listen(config.port, () => {
     console.log(`Documentation server running on port ${config.port}`);

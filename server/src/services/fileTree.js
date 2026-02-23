@@ -8,7 +8,7 @@ const path = require('path');
 function extractTitle(filePath) {
   try {
     const content = fs.readFileSync(filePath, 'utf-8');
-    const match = content.match(/^#\s+(.+)$/m);
+    const match = content.match(/^#{1,3}\s+(.+)$/m);
     return match ? match[1].trim() : null;
   } catch {
     return null;
@@ -57,28 +57,32 @@ function getTree(repoPath, relativePath = '') {
 
     if (entry.isDirectory()) {
       const children = getTree(repoPath, entryRelativePath);
-      // Only include directories that contain .md files (directly or nested)
-      if (children.length > 0) {
-        const dirItem = {
-          name: entry.name,
-          path: entryRelativePath,
-          type: 'directory',
-          title: formatFilename(entry.name),
-          children,
-        };
 
-        // Check if directory has an index.md
-        const indexPath = path.join(fullPath, entry.name, 'index.md');
-        if (fs.existsSync(indexPath)) {
-          dirItem.indexFile = entryRelativePath + '/index.md';
-          const indexTitle = extractTitle(indexPath);
-          if (indexTitle) {
-            dirItem.title = indexTitle;
-          }
+      // Show directory if it has .md files (nested) OR is empty (only .gitkeep)
+      const dirPath = path.join(fullPath, entry.name);
+      const dirEntries = fs.readdirSync(dirPath).filter(f => f !== '.git');
+      const isGitkeepOnly = dirEntries.length === 0 || (dirEntries.length === 1 && dirEntries[0] === '.gitkeep');
+      if (children.length === 0 && !isGitkeepOnly) continue;
+
+      const dirItem = {
+        name: entry.name,
+        path: entryRelativePath,
+        type: 'directory',
+        title: formatFilename(entry.name),
+        children,
+      };
+
+      // Check if directory has an index.md
+      const indexPath = path.join(fullPath, entry.name, 'index.md');
+      if (fs.existsSync(indexPath)) {
+        dirItem.indexFile = entryRelativePath + '/index.md';
+        const indexTitle = extractTitle(indexPath);
+        if (indexTitle) {
+          dirItem.title = indexTitle;
         }
-
-        result.push(dirItem);
       }
+
+      result.push(dirItem);
     } else if (entry.isFile() && entry.name.endsWith('.md') && entry.name.toLowerCase() !== 'readme.md') {
       const absPath = path.join(fullPath, entry.name);
       const title = extractTitle(absPath) || formatFilename(entry.name);
