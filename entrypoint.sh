@@ -13,7 +13,7 @@ mkdir -p /app/docs
 echo "Syncing server dependencies..."
 cd /app/server && npm install --no-audit --no-fund
 echo "Syncing client dependencies..."
-cd /app/client && npm install --no-audit --no-fund
+cd /app/client && NODE_ENV=development npm install --no-audit --no-fund
 
 if [ "$NODE_ENV" = "production" ]; then
   echo "Building client for production (BASE_PATH=${VITE_BASE_PATH:-/})..."
