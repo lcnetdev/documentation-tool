@@ -7,6 +7,35 @@ class GitService {
   constructor(repoPath) {
     this.repoPath = repoPath;
     this.git = simpleGit(repoPath);
+    this._ensureAuth();
+  }
+
+  /**
+   * Ensure the origin remote URL has credentials embedded.
+   * Handles repos that were manually cloned without a token in the URL.
+   */
+  _ensureAuth() {
+    if (!config.gitToken) return;
+
+    try {
+      const gitConfigPath = path.join(this.repoPath, '.git', 'config');
+      if (!fs.existsSync(gitConfigPath)) return;
+
+      let gitConfig = fs.readFileSync(gitConfigPath, 'utf-8');
+      const urlMatch = gitConfig.match(/url\s*=\s*(https:\/\/[^\s]+)/);
+      if (!urlMatch) return;
+
+      const currentUrl = urlMatch[1];
+      // Skip if already has credentials
+      if (currentUrl.includes('@')) return;
+
+      const prefix = config.gitUser ? config.gitUser + ':' : '';
+      const authUrl = currentUrl.replace('https://', `https://${prefix}${config.gitToken}@`);
+      gitConfig = gitConfig.replace(currentUrl, authUrl);
+      fs.writeFileSync(gitConfigPath, gitConfig, 'utf-8');
+    } catch (err) {
+      console.error('Failed to inject git credentials:', err.message);
+    }
   }
 
   /**
