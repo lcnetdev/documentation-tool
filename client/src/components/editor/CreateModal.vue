@@ -152,7 +152,7 @@ export default {
         )
         if (!response.ok) {
           const data = await response.json().catch(() => ({}))
-          throw new Error(data.error || 'Failed to create')
+          throw new Error(data.details || data.error || 'Failed to create')
         }
         this.$emit('created', { path: fullPath, type: this.createType })
         this.$emit('close')

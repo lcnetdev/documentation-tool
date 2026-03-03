@@ -173,24 +173,7 @@ router.delete('/:repoName/directory/*', (req, res) => {
         '--author': `${authorName} <${authorEmail}>`,
       });
 
-      try {
-        await gitService.git.push();
-      } catch (pushError) {
-        gitService._logGitError('Push failed (delete directory)', pushError);
-        console.log('[GitService] Attempting pull --rebase and retry...');
-        try {
-          await gitService.git.pull({ '--rebase': 'true' });
-        } catch (pullError) {
-          gitService._logGitError('Pull --rebase also failed (delete directory)', pullError);
-          throw pullError;
-        }
-        try {
-          await gitService.git.push();
-        } catch (retryError) {
-          gitService._logGitError('Retry push also failed (delete directory)', retryError);
-          throw retryError;
-        }
-      }
+      await gitService._pushWithRetry();
     })
     .then(() => {
       invalidateCache(repoName, repoPath);

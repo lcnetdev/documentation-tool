@@ -386,7 +386,7 @@ export default {
         )
         if (!response.ok) {
           const errData = await response.json().catch(() => ({}))
-          throw new Error(errData.message || 'Failed to save file')
+          throw new Error(errData.details || errData.error || 'Failed to save file')
         }
         this.originalContent = this.fileContent
         if (this.$refs.fileTree) {
@@ -416,7 +416,7 @@ export default {
         )
         if (!response.ok) {
           const errData = await response.json().catch(() => ({}))
-          throw new Error(errData.error || 'Failed to delete file')
+          throw new Error(errData.details || errData.error || 'Failed to delete file')
         }
         if (this.$refs.fileTree) {
           this.$refs.fileTree.fetchTree()
@@ -444,7 +444,7 @@ export default {
         )
         if (!response.ok) {
           const errData = await response.json().catch(() => ({}))
-          throw new Error(errData.error || 'Failed to delete directory')
+          throw new Error(errData.details || errData.error || 'Failed to delete directory')
         }
         if (this.$refs.fileTree) {
           this.$refs.fileTree.fetchTree()

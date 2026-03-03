@@ -103,7 +103,7 @@ export default {
         )
         if (!response.ok) {
           const data = await response.json().catch(() => ({}))
-          throw new Error(data.error || 'Failed to create branch')
+          throw new Error(data.details || data.error || 'Failed to create branch')
         }
         const result = await response.json()
         this.$emit('created', result)

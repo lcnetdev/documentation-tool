@@ -15,15 +15,24 @@ class GitService {
    * Handles repos that were manually cloned without a token in the URL.
    */
   _ensureAuth() {
-    if (!config.gitToken) return;
+    if (!config.gitToken) {
+      console.warn('[GitService] _ensureAuth: No GIT_TOKEN configured, skipping auth injection');
+      return;
+    }
 
     try {
       const gitConfigPath = path.join(this.repoPath, '.git', 'config');
-      if (!fs.existsSync(gitConfigPath)) return;
+      if (!fs.existsSync(gitConfigPath)) {
+        console.warn(`[GitService] _ensureAuth: No .git/config found at ${gitConfigPath}`);
+        return;
+      }
 
       let gitConfig = fs.readFileSync(gitConfigPath, 'utf-8');
       const urlMatch = gitConfig.match(/url\s*=\s*(https:\/\/[^\s]+)/);
-      if (!urlMatch) return;
+      if (!urlMatch) {
+        console.warn('[GitService] _ensureAuth: No https URL found in .git/config');
+        return;
+      }
 
       const currentUrl = urlMatch[1];
       // Skip if already has credentials
@@ -33,8 +42,9 @@ class GitService {
       const authUrl = currentUrl.replace('https://', `https://${prefix}${config.gitToken}@`);
       gitConfig = gitConfig.replace(currentUrl, authUrl);
       fs.writeFileSync(gitConfigPath, gitConfig, 'utf-8');
+      console.log('[GitService] _ensureAuth: Injected credentials into remote URL');
     } catch (err) {
-      console.error('Failed to inject git credentials:', err.message);
+      console.error('[GitService] _ensureAuth failed:', err.message);
     }
   }
 
@@ -87,8 +97,92 @@ class GitService {
   }
 
   /**
+   * Check if a git error is a transient server/network issue (worth retrying as-is)
+   * vs a non-fast-forward rejection (needs rebase).
+   */
+  _isTransientError(err) {
+    const msg = (err.message || '') + (err.git?.stdErr || '');
+    return /error:\s*5\d\d|Internal Server Error|Could not resolve host|Connection refused|Connection timed out|SSL|couldn't connect/i.test(msg);
+  }
+
+  _isNonFastForward(err) {
+    const msg = (err.message || '') + (err.git?.stdErr || '');
+    return /non-fast-forward|fetch first|rejected.*non-fast-forward/i.test(msg);
+  }
+
+  /**
+   * Push with smart recovery:
+   * - Transient errors (5xx, network): retry push up to 2 times with delay
+   * - Non-fast-forward: stash, pull --rebase, pop stash, retry push
+   * - Other errors: fail immediately
+   */
+  async _pushWithRetry() {
+    try {
+      await this.git.push();
+      return;
+    } catch (pushError) {
+      this._logGitError('Push failed', pushError);
+
+      if (this._isTransientError(pushError)) {
+        // Transient server/network error — wait and retry push directly
+        for (let attempt = 1; attempt <= 2; attempt++) {
+          console.log(`[GitService] Transient error detected, retrying push (attempt ${attempt}/2) after 3s...`);
+          await new Promise(r => setTimeout(r, 3000));
+          try {
+            await this.git.push();
+            return;
+          } catch (retryError) {
+            this._logGitError(`Retry push attempt ${attempt} failed`, retryError);
+            if (attempt === 2) throw retryError;
+          }
+        }
+      } else if (this._isNonFastForward(pushError)) {
+        // Remote has new commits — stash, rebase, pop, push
+        console.log('[GitService] Non-fast-forward detected, attempting stash + pull --rebase + push...');
+        let stashed = false;
+        try {
+          const stashResult = await this.git.stash();
+          stashed = !stashResult.includes('No local changes');
+          if (stashed) console.log('[GitService] Stashed unstaged changes');
+        } catch (stashError) {
+          this._logGitError('Stash failed', stashError);
+        }
+
+        try {
+          await this.git.pull({ '--rebase': 'true' });
+        } catch (pullError) {
+          this._logGitError('Pull --rebase failed', pullError);
+          if (stashed) {
+            try { await this.git.stash(['pop']); } catch (e) { this._logGitError('Stash pop failed after pull error', e); }
+          }
+          throw pullError;
+        }
+
+        if (stashed) {
+          try {
+            await this.git.stash(['pop']);
+            console.log('[GitService] Restored stashed changes');
+          } catch (popError) {
+            this._logGitError('Stash pop failed', popError);
+            throw popError;
+          }
+        }
+
+        try {
+          await this.git.push();
+        } catch (retryError) {
+          this._logGitError('Push after rebase failed', retryError);
+          throw retryError;
+        }
+      } else {
+        // Unknown error (auth failure, permission denied, etc.) — don't retry
+        throw pushError;
+      }
+    }
+  }
+
+  /**
    * Stage a file, commit with the given message and author, then push.
-   * On push failure, attempts git pull --rebase then retries push once.
    */
   async commitAndPush(filePath, message, username) {
     const authorName = username || 'Documentation Tool';
@@ -105,24 +199,7 @@ class GitService {
       '--author': `${authorName} <${authorEmail}>`,
     });
 
-    try {
-      await this.git.push();
-    } catch (pushError) {
-      this._logGitError('Push failed', pushError);
-      console.log('[GitService] Attempting pull --rebase and retry...');
-      try {
-        await this.git.pull({ '--rebase': 'true' });
-      } catch (pullError) {
-        this._logGitError('Pull --rebase also failed', pullError);
-        throw pullError;
-      }
-      try {
-        await this.git.push();
-      } catch (retryError) {
-        this._logGitError('Retry push also failed', retryError);
-        throw retryError;
-      }
-    }
+    await this._pushWithRetry();
 
     const log = await this.git.log({ maxCount: 1 });
     return log.latest.hash;
@@ -186,24 +263,7 @@ class GitService {
       '--author': `${authorName} <${authorEmail}>`
     });
 
-    try {
-      await this.git.push();
-    } catch (pushError) {
-      this._logGitError('Push failed', pushError);
-      console.log('[GitService] Attempting pull --rebase and retry...');
-      try {
-        await this.git.pull({ '--rebase': 'true' });
-      } catch (pullError) {
-        this._logGitError('Pull --rebase also failed', pullError);
-        throw pullError;
-      }
-      try {
-        await this.git.push();
-      } catch (retryError) {
-        this._logGitError('Retry push also failed', retryError);
-        throw retryError;
-      }
-    }
+    await this._pushWithRetry();
 
     const log = await this.git.log({ maxCount: 1 });
     return log.latest.hash;
