@@ -64,6 +64,28 @@ class GitService {
     console.log(`Successfully cloned ${repoName}.`);
   }
 
+  _logGitError(label, err) {
+    console.error(`[GitService] ${label}:`);
+    console.error(`  message: ${err.message}`);
+    if (err.git) {
+      if (err.git.stdErr) console.error(`  stderr: ${err.git.stdErr.trim()}`);
+      if (err.git.stdOut) console.error(`  stdout: ${err.git.stdOut.trim()}`);
+    }
+    if (err.stack) console.error(`  stack: ${err.stack}`);
+  }
+
+  /**
+   * Extract a detailed error message including git stderr/stdout when available.
+   */
+  static formatError(err) {
+    let msg = err.message || String(err);
+    if (err.git) {
+      if (err.git.stdErr) msg += '\ngit stderr: ' + err.git.stdErr.trim();
+      if (err.git.stdOut) msg += '\ngit stdout: ' + err.git.stdOut.trim();
+    }
+    return msg;
+  }
+
   /**
    * Stage a file, commit with the given message and author, then push.
    * On push failure, attempts git pull --rebase then retries push once.
@@ -71,6 +93,8 @@ class GitService {
   async commitAndPush(filePath, message, username) {
     const authorName = username || 'Documentation Tool';
     const authorEmail = `${username || 'editor'}@documentation-tool`;
+
+    console.log(`[GitService] commitAndPush: file="${filePath}", message="${message}", user="${username}", repo="${this.repoPath}"`);
 
     await this.git
       .addConfig('user.name', authorName)
@@ -84,9 +108,20 @@ class GitService {
     try {
       await this.git.push();
     } catch (pushError) {
-      console.log('Push failed, attempting pull --rebase and retry...');
-      await this.git.pull({ '--rebase': 'true' });
-      await this.git.push();
+      this._logGitError('Push failed', pushError);
+      console.log('[GitService] Attempting pull --rebase and retry...');
+      try {
+        await this.git.pull({ '--rebase': 'true' });
+      } catch (pullError) {
+        this._logGitError('Pull --rebase also failed', pullError);
+        throw pullError;
+      }
+      try {
+        await this.git.push();
+      } catch (retryError) {
+        this._logGitError('Retry push also failed', retryError);
+        throw retryError;
+      }
     }
 
     const log = await this.git.log({ maxCount: 1 });
@@ -125,7 +160,12 @@ class GitService {
    * Push a new branch to remote with upstream tracking.
    */
   async pushNewBranch(branchName) {
-    await this.git.push(['-u', 'origin', branchName]);
+    try {
+      await this.git.push(['-u', 'origin', branchName]);
+    } catch (err) {
+      this._logGitError(`pushNewBranch("${branchName}") failed`, err);
+      throw err;
+    }
   }
 
   /**
@@ -134,6 +174,8 @@ class GitService {
   async commitAll(message, username) {
     const authorName = username || 'Documentation Tool';
     const authorEmail = `${username || 'editor'}@documentation-tool`;
+
+    console.log(`[GitService] commitAll: message="${message}", user="${username}", repo="${this.repoPath}"`);
 
     await this.git
       .addConfig('user.name', authorName)
@@ -147,9 +189,20 @@ class GitService {
     try {
       await this.git.push();
     } catch (pushError) {
-      console.log('Push failed, attempting pull --rebase and retry...');
-      await this.git.pull({ '--rebase': 'true' });
-      await this.git.push();
+      this._logGitError('Push failed', pushError);
+      console.log('[GitService] Attempting pull --rebase and retry...');
+      try {
+        await this.git.pull({ '--rebase': 'true' });
+      } catch (pullError) {
+        this._logGitError('Pull --rebase also failed', pullError);
+        throw pullError;
+      }
+      try {
+        await this.git.push();
+      } catch (retryError) {
+        this._logGitError('Retry push also failed', retryError);
+        throw retryError;
+      }
     }
 
     const log = await this.git.log({ maxCount: 1 });

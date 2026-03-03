@@ -78,7 +78,7 @@ router.post('/:repoName/file/*', (req, res) => {
       res.json({ success: true, commit: hash });
     })
     .catch((err) => {
-      res.status(500).json({ error: 'Failed to save file', details: err.message });
+      res.status(500).json({ error: 'Failed to save file', details: GitService.formatError(err) });
     });
 });
 
@@ -126,7 +126,7 @@ router.delete('/:repoName/file/*', (req, res) => {
       if (err.message === 'File not found') {
         return res.status(404).json({ error: 'File not found' });
       }
-      res.status(500).json({ error: 'Failed to delete file', details: err.message });
+      res.status(500).json({ error: 'Failed to delete file', details: GitService.formatError(err) });
     });
 });
 
@@ -176,8 +176,20 @@ router.delete('/:repoName/directory/*', (req, res) => {
       try {
         await gitService.git.push();
       } catch (pushError) {
-        await gitService.git.pull({ '--rebase': 'true' });
-        await gitService.git.push();
+        gitService._logGitError('Push failed (delete directory)', pushError);
+        console.log('[GitService] Attempting pull --rebase and retry...');
+        try {
+          await gitService.git.pull({ '--rebase': 'true' });
+        } catch (pullError) {
+          gitService._logGitError('Pull --rebase also failed (delete directory)', pullError);
+          throw pullError;
+        }
+        try {
+          await gitService.git.push();
+        } catch (retryError) {
+          gitService._logGitError('Retry push also failed (delete directory)', retryError);
+          throw retryError;
+        }
       }
     })
     .then(() => {
@@ -188,7 +200,7 @@ router.delete('/:repoName/directory/*', (req, res) => {
       if (err.message === 'Directory not found') {
         return res.status(404).json({ error: 'Directory not found' });
       }
-      res.status(500).json({ error: 'Failed to delete directory', details: err.message });
+      res.status(500).json({ error: 'Failed to delete directory', details: GitService.formatError(err) });
     });
 });
 
@@ -340,7 +352,7 @@ router.post('/:repoName/create', (req, res) => {
         res.json({ success: true, path: itemPath, commit: hash });
       })
       .catch((err) => {
-        res.status(500).json({ error: 'Failed to create file', details: err.message });
+        res.status(500).json({ error: 'Failed to create file', details: GitService.formatError(err) });
       });
   } else {
     // directory
@@ -367,7 +379,7 @@ router.post('/:repoName/create', (req, res) => {
         res.json({ success: true, path: itemPath, commit: hash });
       })
       .catch((err) => {
-        res.status(500).json({ error: 'Failed to create directory', details: err.message });
+        res.status(500).json({ error: 'Failed to create directory', details: GitService.formatError(err) });
       });
   }
 });
@@ -439,7 +451,7 @@ router.post('/:repoName/branch', (req, res) => {
       if (fs.existsSync(newPath)) {
         try { fs.rmSync(newPath, { recursive: true, force: true }); } catch {}
       }
-      res.status(500).json({ error: 'Failed to create branch', details: err.message });
+      res.status(500).json({ error: 'Failed to create branch', details: GitService.formatError(err) });
     });
 });
 
@@ -522,7 +534,7 @@ router.post('/:repoName/merge', (req, res) => {
       res.json({ success: true, parentRepo, ...result });
     })
     .catch((err) => {
-      res.status(500).json({ error: 'Failed to merge branch', details: err.message });
+      res.status(500).json({ error: 'Failed to merge branch', details: GitService.formatError(err) });
     });
 });
 
