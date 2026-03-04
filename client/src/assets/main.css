@@ -332,6 +332,68 @@ h1, h2, h3, h4, h5, h6 {
 /* ============================================
    Markdown Rendered Content
    ============================================ */
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6 {
+  position: relative;
+  scroll-margin-top: 60px;
+}
+
+.markdown-body .heading-anchor {
+  margin-left: 0.4em;
+  color: var(--text-muted);
+  opacity: 0;
+  text-decoration: none;
+  transition: opacity 0.15s ease;
+  vertical-align: middle;
+}
+
+.markdown-body h1:hover .heading-anchor,
+.markdown-body h2:hover .heading-anchor,
+.markdown-body h3:hover .heading-anchor,
+.markdown-body h4:hover .heading-anchor,
+.markdown-body h5:hover .heading-anchor,
+.markdown-body h6:hover .heading-anchor,
+.markdown-body .heading-anchor:focus {
+  opacity: 1;
+}
+
+.markdown-body .heading-anchor:hover {
+  color: var(--accent);
+}
+
+.markdown-body .heading-anchor-icon {
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.markdown-body .heading-anchor-toast {
+  position: absolute;
+  margin-left: 8px;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-primary);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+}
+
+.markdown-body .heading-anchor-toast.show {
+  opacity: 1;
+}
+
+.markdown-body .heading-anchor-toast.fade-out {
+  opacity: 0;
+}
+
 .markdown-body h1 {
   font-size: 2em;
   margin: 0.67em 0 0.4em;

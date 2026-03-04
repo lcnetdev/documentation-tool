@@ -39,11 +39,17 @@ export default {
   },
   watch: {
     renderedHtml() {
-      this.$nextTick(() => this.renderMermaid())
+      this.$nextTick(() => {
+        this.renderMermaid()
+        this.scrollToHash()
+      })
     }
   },
   mounted() {
-    this.$nextTick(() => this.renderMermaid())
+    this.$nextTick(() => {
+      this.renderMermaid()
+      this.scrollToHash()
+    })
   },
   methods: {
     async renderMermaid() {
@@ -89,6 +95,38 @@ export default {
         }
       }
     },
+    findByHash(hash) {
+      // Try the raw hash first (IDs may contain literal %2F etc.)
+      const raw = hash.slice(1)
+      let el = document.getElementById(raw)
+      if (!el) {
+        // Fallback: try decoded version
+        try { el = document.getElementById(decodeURIComponent(raw)) } catch {}
+      }
+      return el
+    },
+    scrollToHash() {
+      const hash = window.location.hash
+      if (!hash) return
+      // Wait for DOM to fully paint after v-html update
+      setTimeout(() => {
+        const el = this.findByHash(hash)
+        if (el) el.scrollIntoView({ behavior: 'smooth' })
+      }, 100)
+    },
+    showCopiedToast(anchor) {
+      const toast = document.createElement('span')
+      toast.textContent = 'Copied!'
+      toast.className = 'heading-anchor-toast'
+      anchor.parentElement.style.position = 'relative'
+      anchor.parentElement.appendChild(toast)
+      requestAnimationFrame(() => { toast.classList.add('show') })
+      setTimeout(() => {
+        toast.classList.remove('show')
+        toast.classList.add('fade-out')
+        setTimeout(() => toast.remove(), 300)
+      }, 1200)
+    },
     handleClick(e) {
       const link = e.target.closest('a')
       if (!link) return
@@ -98,6 +136,28 @@ export default {
 
       // External links: let browser handle
       if (href.startsWith('http://') || href.startsWith('https://')) {
+        return
+      }
+
+      // Heading anchor links: copy URL to clipboard and show "Copied" toast
+      if (href.startsWith('#') && link.classList.contains('heading-anchor')) {
+        e.preventDefault()
+        const fullUrl = window.location.origin + window.location.pathname + window.location.search + href
+        navigator.clipboard.writeText(fullUrl).then(() => {
+          this.showCopiedToast(link)
+        })
+        history.replaceState(null, '', window.location.pathname + window.location.search + href)
+        return
+      }
+
+      // Other hash links: scroll to the element
+      if (href.startsWith('#')) {
+        e.preventDefault()
+        const el = this.findByHash(href)
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth' })
+          history.replaceState(null, '', window.location.pathname + window.location.search + href)
+        }
         return
       }
 

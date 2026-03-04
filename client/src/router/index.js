@@ -24,7 +24,25 @@ const routes = [
 
 const router = createRouter({
   history: createWebHistory(basePath),
-  routes
+  routes,
+  scrollBehavior(to) {
+    if (to.hash) {
+      const raw = to.hash.slice(1)
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          let el = document.getElementById(raw)
+          if (!el) {
+            try { el = document.getElementById(decodeURIComponent(raw)) } catch {}
+          }
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth' })
+          }
+          resolve(false)
+        }, 200)
+      })
+    }
+    return { top: 0 }
+  }
 })
 
 export default router
