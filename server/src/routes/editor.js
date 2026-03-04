@@ -9,6 +9,7 @@ const WriteQueue = require('../services/writeQueue');
 const RepoMeta = require('../services/repoMeta');
 const { saveUploadedImage, savePastedImage } = require('../services/imageHandler');
 const { invalidateCache } = require('../services/pdfGenerator');
+const { updateNavOrder } = require('../services/fileTree');
 
 const router = express.Router();
 const writeQueue = new WriteQueue();
@@ -365,6 +366,221 @@ router.post('/:repoName/create', (req, res) => {
         res.status(500).json({ error: 'Failed to create directory', details: GitService.formatError(err) });
       });
   }
+});
+
+/**
+ * POST /repos/:repoName/rename-dir
+ * Rename a directory.
+ * Body: { dirPath, newName }
+ */
+router.post('/:repoName/rename-dir', (req, res) => {
+  const repoName = req.params.repoName;
+  const { dirPath, newName } = req.body;
+
+  if (!dirPath) {
+    return res.status(400).json({ error: 'dirPath is required' });
+  }
+  if (!newName || !newName.trim()) {
+    return res.status(400).json({ error: 'newName is required' });
+  }
+
+  const trimmed = newName.trim();
+  if (trimmed.includes('/') || trimmed.includes('\\') || trimmed.includes('..')) {
+    return res.status(400).json({ error: 'Invalid directory name' });
+  }
+
+  const repoPath = path.join(config.docsDir, repoName);
+  if (!fs.existsSync(repoPath)) {
+    return res.status(404).json({ error: 'Repository not found' });
+  }
+
+  const srcFull = path.join(repoPath, dirPath);
+  const srcResolved = path.resolve(srcFull);
+  const repoResolved = path.resolve(repoPath);
+  if (!srcResolved.startsWith(repoResolved + path.sep)) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+
+  // Build new path: same parent, new name
+  const parentDir = path.dirname(dirPath);
+  const newDirPath = parentDir === '.' ? trimmed : path.join(parentDir, trimmed);
+  const destFull = path.join(repoPath, newDirPath);
+  const destResolved = path.resolve(destFull);
+  if (!destResolved.startsWith(repoResolved + path.sep)) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+
+  if (!fs.existsSync(srcFull) || !fs.statSync(srcFull).isDirectory()) {
+    return res.status(404).json({ error: 'Directory not found' });
+  }
+
+  if (srcResolved === destResolved) {
+    return res.status(400).json({ error: 'New name is the same as the current name' });
+  }
+
+  if (fs.existsSync(destFull)) {
+    return res.status(409).json({ error: 'A directory with that name already exists' });
+  }
+
+  writeQueue
+    .enqueue(repoName, async () => {
+      fs.renameSync(srcFull, destFull);
+
+      const gitService = new GitService(repoPath);
+      const authorName = req.user.username || 'Documentation Tool';
+      const authorEmail = `${req.user.username || 'editor'}@documentation-tool`;
+
+      await gitService.git
+        .addConfig('user.name', authorName)
+        .addConfig('user.email', authorEmail);
+
+      await gitService.git.add('-A');
+      await gitService.git.commit(`Rename directory ${path.basename(dirPath)} to ${trimmed}`, {
+        '--author': `${authorName} <${authorEmail}>`,
+      });
+
+      await gitService._pushWithRetry();
+
+      return { newPath: newDirPath };
+    })
+    .then((result) => {
+      invalidateCache(repoName, repoPath);
+      res.json({ success: true, ...result });
+    })
+    .catch((err) => {
+      if (err.message === 'Directory not found') {
+        return res.status(404).json({ error: 'Directory not found' });
+      }
+      res.status(500).json({ error: 'Failed to rename directory', details: GitService.formatError(err) });
+    });
+});
+
+/**
+ * POST /repos/:repoName/move
+ * Move a file to a different directory.
+ * Body: { filePath, destinationDir }
+ */
+router.post('/:repoName/move', (req, res) => {
+  const repoName = req.params.repoName;
+  const { filePath, destinationDir } = req.body;
+
+  if (!filePath) {
+    return res.status(400).json({ error: 'filePath is required' });
+  }
+  if (destinationDir === undefined || destinationDir === null) {
+    return res.status(400).json({ error: 'destinationDir is required' });
+  }
+
+  const repoPath = path.join(config.docsDir, repoName);
+  if (!fs.existsSync(repoPath)) {
+    return res.status(404).json({ error: 'Repository not found' });
+  }
+
+  const srcFull = path.join(repoPath, filePath);
+  const srcResolved = path.resolve(srcFull);
+  const repoResolved = path.resolve(repoPath);
+  if (!srcResolved.startsWith(repoResolved + path.sep)) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+
+  const fileName = path.basename(filePath);
+  const destRelative = destinationDir ? path.join(destinationDir, fileName) : fileName;
+  const destFull = path.join(repoPath, destRelative);
+  const destResolved = path.resolve(destFull);
+  if (!destResolved.startsWith(repoResolved + path.sep) && destResolved !== repoResolved) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+
+  // Check source exists
+  if (!fs.existsSync(srcFull)) {
+    return res.status(404).json({ error: 'Source file not found' });
+  }
+
+  // Check not moving to same location
+  if (srcResolved === destResolved) {
+    return res.status(400).json({ error: 'File is already in that directory' });
+  }
+
+  // Check destination doesn't already have a file with that name
+  if (fs.existsSync(destFull)) {
+    return res.status(409).json({ error: 'A file with that name already exists in the destination' });
+  }
+
+  writeQueue
+    .enqueue(repoName, async () => {
+      // Ensure destination directory exists
+      const destDir = path.dirname(destFull);
+      if (!fs.existsSync(destDir)) {
+        fs.mkdirSync(destDir, { recursive: true });
+      }
+
+      fs.renameSync(srcFull, destFull);
+
+      const gitService = new GitService(repoPath);
+      const authorName = req.user.username || 'Documentation Tool';
+      const authorEmail = `${req.user.username || 'editor'}@documentation-tool`;
+
+      await gitService.git
+        .addConfig('user.name', authorName)
+        .addConfig('user.email', authorEmail);
+
+      await gitService.git.add([filePath, destRelative]);
+      const destDisplay = destinationDir || '(root)';
+      await gitService.git.commit(`Move ${fileName} to ${destDisplay}`, {
+        '--author': `${authorName} <${authorEmail}>`,
+      });
+
+      await gitService._pushWithRetry();
+
+      const log = await gitService.git.log({ maxCount: 1 });
+      return { commit: log.latest.hash, newPath: destRelative };
+    })
+    .then((result) => {
+      invalidateCache(repoName, repoPath);
+      res.json({ success: true, ...result });
+    })
+    .catch((err) => {
+      res.status(500).json({ error: 'Failed to move file', details: GitService.formatError(err) });
+    });
+});
+
+/**
+ * POST /repos/:repoName/nav-order
+ * Update the NAV_ORDER comment in root index.md, commit and push.
+ * Body: { order: string[] }
+ */
+router.post('/:repoName/nav-order', (req, res) => {
+  const repoName = req.params.repoName;
+  const { order } = req.body;
+
+  if (!Array.isArray(order)) {
+    return res.status(400).json({ error: 'order must be an array of strings' });
+  }
+
+  const repoPath = path.join(config.docsDir, repoName);
+  if (!fs.existsSync(repoPath)) {
+    return res.status(404).json({ error: 'Repository not found' });
+  }
+
+  writeQueue
+    .enqueue(repoName, async () => {
+      updateNavOrder(repoPath, order);
+
+      const gitService = new GitService(repoPath);
+      const hash = await gitService.commitAndPush(
+        'index.md',
+        'Update navigation order in index.md',
+        req.user.username
+      );
+      return hash;
+    })
+    .then((hash) => {
+      invalidateCache(repoName, repoPath);
+      res.json({ success: true, commit: hash });
+    })
+    .catch((err) => {
+      res.status(500).json({ error: 'Failed to update navigation order', details: GitService.formatError(err) });
+    });
 });
 
 /**

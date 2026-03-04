@@ -38,7 +38,6 @@
           </div>
         </div>
         <div class="filetree-actions">
-          <button class="new-btn" @click="showCreateModal = true" title="Create new file or directory">+ New</button>
           <button v-if="isOriginal" class="branch-btn" @click="showBranchModal = true" title="Create a branch">Branch</button>
           <button v-if="isBranch" class="merge-btn" @click="showMergeModal = true" title="Merge branch into original">Merge</button>
           <button class="theme-toggle" @click="onToggleTheme" :title="currentTheme === 'dark' ? 'Day Mode' : 'Night Mode'">
@@ -50,12 +49,46 @@
           </button>
         </div>
       </div>
+      <div class="filetree-toolbar">
+        <button v-if="!reorderMode" class="filetree-toolbar-btn filetree-toolbar-new" @click="showCreateModal = true" title="Create new file or directory">New</button>
+        <button
+          class="filetree-toolbar-btn"
+          :class="{ 'filetree-toolbar-active': reorderMode }"
+          @click="onReorder"
+          :title="reorderMode ? 'Save order and exit' : 'Reorder files'"
+        >{{ reorderMode ? 'Done' : 'Reorder' }}</button>
+        <button v-if="!reorderMode" class="filetree-toolbar-btn" @click="onMove" title="Move file or directory">Move</button>
+      </div>
+      <div v-if="reorderMode" class="reorder-list">
+        <div v-if="reorderSaving" class="reorder-saving">
+          <span class="saving-spinner"></span> Saving order...
+        </div>
+        <ul v-else class="reorder-items">
+          <li
+            v-for="(item, index) in reorderItems"
+            :key="item.name"
+            class="reorder-item"
+            draggable="true"
+            @dragstart="onReorderDragStart(index, $event)"
+            @dragover.prevent="onReorderDragOver(index, $event)"
+            @dragleave="onReorderDragLeave($event)"
+            @drop="onReorderDrop(index, $event)"
+            @dragend="onReorderDragEnd"
+          >
+            <span class="reorder-grip">&#x2630;</span>
+            <span class="reorder-icon">{{ item.type === 'directory' ? '&#x1F4C1;' : '&#x1F4C4;' }}</span>
+            <span class="reorder-name">{{ item.title }}</span>
+          </li>
+        </ul>
+      </div>
       <FileTree
+        v-show="!reorderMode"
         ref="fileTree"
         :repo-name="repoName"
         :current-file="currentFile"
         @select="onFileSelect"
         @delete-dir="onDeleteDir"
+        @rename-dir="onRenameDir"
       />
     </aside>
     <div class="editor-main">
@@ -110,6 +143,12 @@
       @close="showMergeModal = false"
       @merged="onMerged"
     />
+    <MoveModal
+      :visible="showMoveModal"
+      :repo-name="repoName"
+      @close="showMoveModal = false"
+      @moved="onMoved"
+    />
   </div>
 </template>
 
@@ -123,6 +162,7 @@ import ImageDropZone from '@/components/editor/ImageDropZone.vue'
 import CreateModal from '@/components/editor/CreateModal.vue'
 import BranchModal from '@/components/editor/BranchModal.vue'
 import MergeModal from '@/components/editor/MergeModal.vue'
+import MoveModal from '@/components/editor/MoveModal.vue'
 import { state as authState, isAuthenticated, login, logout, getAuthHeader } from '@/stores/auth'
 import { computeRelativePath } from '@/utils/relativePath'
 import { apiFetch } from '@/utils/api'
@@ -139,7 +179,8 @@ export default {
     ImageDropZone,
     CreateModal,
     BranchModal,
-    MergeModal
+    MergeModal,
+    MoveModal
   },
   data() {
     return {
@@ -155,8 +196,13 @@ export default {
       showCreateModal: false,
       showBranchModal: false,
       showMergeModal: false,
+      showMoveModal: false,
       repoInfo: null,
-      currentTheme: getTheme()
+      currentTheme: getTheme(),
+      reorderMode: false,
+      reorderItems: [],
+      reorderSaving: false,
+      reorderDragIndex: null
     }
   },
   computed: {
@@ -426,6 +472,105 @@ export default {
         alert('Delete failed: ' + err.message)
       }
     },
+    async onReorder() {
+      if (this.reorderMode) {
+        // "Done" pressed — save the new order
+        this.reorderSaving = true
+        try {
+          const order = this.reorderItems.map(item => item.name)
+          const response = await apiFetch(
+            '/api/repos/' + this.repoName + '/nav-order',
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': getAuthHeader()
+              },
+              body: JSON.stringify({ order })
+            }
+          )
+          if (!response.ok) {
+            const errData = await response.json().catch(() => ({}))
+            throw new Error(errData.details || errData.error || 'Failed to save order')
+          }
+          this.reorderMode = false
+          this.reorderItems = []
+          // Refresh tree to show new order
+          if (this.$refs.fileTree) {
+            this.$refs.fileTree.fetchTree()
+          }
+          // Reload current file in case it was index.md (content changed)
+          if (this.currentFile === 'index.md') {
+            this.loadFile()
+          }
+        } catch (err) {
+          alert('Failed to save order: ' + err.message)
+        } finally {
+          this.reorderSaving = false
+        }
+      } else {
+        // Enter reorder mode — get root items from tree
+        if (!this.$refs.fileTree || !this.$refs.fileTree.tree.length) {
+          return
+        }
+        this.reorderItems = this.$refs.fileTree.tree.map(item => ({
+          name: item.name,
+          title: item.title || item.name,
+          type: item.type
+        }))
+        this.reorderMode = true
+      }
+    },
+    onReorderDragStart(index, e) {
+      this.reorderDragIndex = index
+      e.dataTransfer.effectAllowed = 'move'
+      e.target.classList.add('dragging')
+    },
+    onReorderDragOver(index, e) {
+      e.dataTransfer.dropEffect = 'move'
+      const target = e.currentTarget
+      if (index !== this.reorderDragIndex) {
+        const rect = target.getBoundingClientRect()
+        const mid = rect.top + rect.height / 2
+        target.classList.remove('drag-above', 'drag-below')
+        target.classList.add(e.clientY < mid ? 'drag-above' : 'drag-below')
+      }
+    },
+    onReorderDragLeave(e) {
+      e.currentTarget.classList.remove('drag-above', 'drag-below')
+    },
+    onReorderDrop(index, e) {
+      e.currentTarget.classList.remove('drag-above', 'drag-below')
+      if (this.reorderDragIndex === null || this.reorderDragIndex === index) return
+      const rect = e.currentTarget.getBoundingClientRect()
+      const mid = rect.top + rect.height / 2
+      const insertBefore = e.clientY < mid
+
+      const item = this.reorderItems.splice(this.reorderDragIndex, 1)[0]
+      let targetIndex = index
+      if (this.reorderDragIndex < index) targetIndex--
+      if (!insertBefore) targetIndex++
+      this.reorderItems.splice(targetIndex, 0, item)
+      this.reorderDragIndex = null
+    },
+    onReorderDragEnd() {
+      this.reorderDragIndex = null
+      document.querySelectorAll('.reorder-item').forEach(el => {
+        el.classList.remove('dragging', 'drag-above', 'drag-below')
+      })
+    },
+    onMove() {
+      this.showMoveModal = true
+    },
+    onMoved(result) {
+      if (this.$refs.fileTree) {
+        this.$refs.fileTree.fetchTree()
+      }
+      // If the moved file was the currently open file, navigate to its new path
+      if (result.newPath) {
+        this.$router.push('/edit/' + this.repoName + '/' + result.newPath)
+      }
+    },
     async onDeleteDir(dirPath) {
       if (!dirPath) return
       const confirmed = window.confirm(
@@ -456,6 +601,44 @@ export default {
       } catch (err) {
         alert('Delete failed: ' + err.message)
       }
+    },
+    async onRenameDir(dirPath) {
+      if (!dirPath) return
+      const currentName = dirPath.split('/').pop()
+      const newName = window.prompt('Rename directory "' + currentName + '" to:', currentName)
+      if (!newName || newName.trim() === currentName) return
+
+      try {
+        const response = await apiFetch(
+          '/api/repos/' + this.repoName + '/rename-dir',
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': getAuthHeader()
+            },
+            body: JSON.stringify({
+              dirPath: dirPath,
+              newName: newName.trim()
+            })
+          }
+        )
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({}))
+          throw new Error(errData.details || errData.error || 'Failed to rename directory')
+        }
+        const result = await response.json()
+        if (this.$refs.fileTree) {
+          this.$refs.fileTree.fetchTree()
+        }
+        // If currently editing a file inside the renamed directory, update the route
+        if (this.currentFile && this.currentFile.startsWith(dirPath + '/')) {
+          const newFilePath = this.currentFile.replace(dirPath, result.newPath)
+          this.$router.push('/edit/' + this.repoName + '/' + newFilePath)
+        }
+      } catch (err) {
+        alert('Rename failed: ' + err.message)
+      }
     }
   }
 }
@@ -483,8 +666,23 @@ export default {
 .collapse-btn:hover { background: var(--bg-surface-active); }
 .expand-btn-editor { display: flex; align-items: center; justify-content: center; width: 24px; background: var(--bg-surface-alt); border: none; border-right: 1px solid var(--border-color); cursor: pointer; color: var(--text-tertiary); font-size: 16px; font-weight: bold; flex-shrink: 0; }
 .expand-btn-editor:hover { background: var(--bg-surface-hover); }
-.new-btn { padding: 2px 8px; font-size: 11px; background: var(--color-primary); border: 1px solid var(--color-primary-hover); border-radius: 3px; cursor: pointer; color: #fff; font-weight: 500; }
-.new-btn:hover { background: var(--color-primary-hover); }
+.filetree-toolbar { display: flex; gap: 0; border-bottom: 1px solid var(--border-color); }
+.filetree-toolbar-btn { flex: 1; padding: 6px 0; font-size: 11px; font-weight: 500; background: var(--bg-surface-hover); border: none; border-right: 1px solid var(--border-color); cursor: pointer; color: var(--text-tertiary); text-align: center; }
+.filetree-toolbar-btn:last-child { border-right: none; }
+.filetree-toolbar-btn:hover { background: var(--bg-surface-active); color: var(--text-primary); }
+.filetree-toolbar-new { color: var(--color-primary); font-weight: 600; }
+.filetree-toolbar-active { background: var(--color-primary) !important; color: #fff !important; font-weight: 600; }
+.reorder-list { flex: 1; overflow-y: auto; padding: 4px 0; }
+.reorder-saving { padding: 16px; font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 8px; }
+.reorder-items { list-style: none; margin: 0; padding: 0; }
+.reorder-item { display: flex; align-items: center; padding: 6px 12px; cursor: grab; font-size: 12px; color: var(--text-tertiary); border-bottom: 1px solid transparent; transition: background-color 0.1s; user-select: none; }
+.reorder-item:hover { background: var(--bg-surface-hover); }
+.reorder-item.dragging { opacity: 0.4; }
+.reorder-item.drag-above { border-top: 2px solid var(--color-primary); }
+.reorder-item.drag-below { border-bottom: 2px solid var(--color-primary); }
+.reorder-grip { margin-right: 8px; color: var(--text-faint); font-size: 10px; cursor: grab; }
+.reorder-icon { font-size: 11px; margin-right: 5px; flex-shrink: 0; }
+.reorder-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .branch-btn { padding: 2px 8px; font-size: 11px; background: var(--bg-surface-hover); border: 1px solid var(--border-color); border-radius: 3px; cursor: pointer; color: var(--text-tertiary); font-weight: 500; }
 .branch-btn:hover { background: var(--bg-surface-active); }
 .merge-btn { padding: 2px 8px; font-size: 11px; background: var(--color-badge-bg); border: 1px solid var(--color-badge-border); border-radius: 3px; cursor: pointer; color: var(--color-badge-text); font-weight: 500; }

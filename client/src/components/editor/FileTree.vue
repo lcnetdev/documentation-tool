@@ -12,6 +12,7 @@
         @select="$emit('select', $event)"
         @toggle-dir="toggleDir"
         @delete-dir="$emit('delete-dir', $event)"
+        @rename-dir="$emit('rename-dir', $event)"
       />
     </ul>
   </div>
@@ -36,7 +37,7 @@ export default {
       default: ''
     }
   },
-  emits: ['select', 'delete-dir'],
+  emits: ['select', 'delete-dir', 'rename-dir'],
   data() {
     return {
       tree: [],

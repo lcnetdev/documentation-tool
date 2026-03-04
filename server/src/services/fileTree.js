@@ -102,6 +102,22 @@ function getTree(repoPath, relativePath = '') {
     return a.name.localeCompare(b.name);
   });
 
+  // At root level, apply NAV_ORDER from index.md if present
+  if (!relativePath) {
+    const navOrder = parseNavOrder(repoPath);
+    if (navOrder.length > 0) {
+      result.sort((a, b) => {
+        const aIdx = navOrder.indexOf(a.name);
+        const bIdx = navOrder.indexOf(b.name);
+        // Items not in list go to the end, keeping their relative alpha order
+        if (aIdx === -1 && bIdx === -1) return 0;
+        if (aIdx === -1) return 1;
+        if (bIdx === -1) return -1;
+        return aIdx - bIdx;
+      });
+    }
+  }
+
   return result;
 }
 
@@ -173,4 +189,47 @@ function parseNav(repoPath) {
   return nav;
 }
 
-module.exports = { getTree, readFile, parseNav };
+/**
+ * Parse the NAV_ORDER comment block from the root index.md.
+ * Returns an array of filenames/dirnames in display order, or empty array if none.
+ */
+function parseNavOrder(repoPath) {
+  const indexPath = path.join(repoPath, 'index.md');
+  if (!fs.existsSync(indexPath)) return [];
+
+  try {
+    const content = fs.readFileSync(indexPath, 'utf-8');
+    const match = content.match(/<!--\s*\nNAV_ORDER\n([\s\S]*?)-->/);
+    if (!match) return [];
+    return match[1].trim().split('\n').map(l => l.trim()).filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Update (or create) the NAV_ORDER comment block at the end of root index.md.
+ * @param {string} repoPath
+ * @param {string[]} order - array of filenames/dirnames
+ */
+function updateNavOrder(repoPath, order) {
+  const indexPath = path.join(repoPath, 'index.md');
+  if (!fs.existsSync(indexPath)) {
+    throw new Error('index.md not found');
+  }
+
+  let content = fs.readFileSync(indexPath, 'utf-8');
+  const block = '<!--\nNAV_ORDER\n' + order.join('\n') + '\n-->';
+
+  // Replace existing block or append
+  const existing = content.match(/<!--\s*\nNAV_ORDER\n[\s\S]*?-->/);
+  if (existing) {
+    content = content.replace(/<!--\s*\nNAV_ORDER\n[\s\S]*?-->/, block);
+  } else {
+    content = content.trimEnd() + '\n\n' + block + '\n';
+  }
+
+  fs.writeFileSync(indexPath, content, 'utf-8');
+}
+
+module.exports = { getTree, readFile, parseNav, parseNavOrder, updateNavOrder };
