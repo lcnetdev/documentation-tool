@@ -117,7 +117,11 @@ export default {
           throw new Error('Search failed')
         }
         const data = await response.json()
-        this.results = data.results || []
+        const allResults = data.results || []
+        this.results = allResults.filter(group => {
+          const parts = group.file.split('/')
+          return !parts.some(part => part === 'hidden')
+        })
       } catch (err) {
         this.results = []
       } finally {

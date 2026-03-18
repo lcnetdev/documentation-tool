@@ -12,8 +12,8 @@ function saveUploadedImage(repoPath, file) {
     fs.mkdirSync(imagesDir, { recursive: true });
   }
 
-  // Add timestamp to generic filenames (e.g. pasted images always named "image.png")
-  let filename = file.originalname;
+  // Sanitize filename: use only the basename to prevent path traversal
+  let filename = path.basename(file.originalname);
   const ext = path.extname(filename);
   const base = path.basename(filename, ext);
   if (base.toLowerCase() === 'image' || fs.existsSync(path.join(imagesDir, filename))) {
@@ -59,11 +59,21 @@ function savePastedImage(repoPath, base64Data, filename) {
     filename = `upload_${timestamp}.png`;
   }
 
+  // Sanitize filename: use only the basename to prevent path traversal
+  filename = path.basename(filename);
+
   // Strip data URL prefix if present (e.g., "data:image/png;base64,")
   const base64Clean = base64Data.replace(/^data:image\/\w+;base64,/, '');
   const buffer = Buffer.from(base64Clean, 'base64');
 
   const destPath = path.join(imagesDir, filename);
+
+  // Verify resolved path stays inside imagesDir
+  const resolved = path.resolve(destPath);
+  if (!resolved.startsWith(path.resolve(imagesDir) + path.sep)) {
+    throw new Error('Invalid filename');
+  }
+
   fs.writeFileSync(destPath, buffer);
 
   return path.join('images', filename);

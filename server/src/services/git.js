@@ -117,6 +117,10 @@ class GitService {
    * - Other errors: fail immediately
    */
   async _pushWithRetry() {
+    if (!config.gitPushEnabled) {
+      console.log('[GitService] Push skipped (GIT_PUSH_ENABLED=false)');
+      return;
+    }
     try {
       await this.git.push();
       return;
@@ -237,6 +241,10 @@ class GitService {
    * Push a new branch to remote with upstream tracking.
    */
   async pushNewBranch(branchName) {
+    if (!config.gitPushEnabled) {
+      console.log(`[GitService] Push skipped for branch "${branchName}" (GIT_PUSH_ENABLED=false)`);
+      return;
+    }
     try {
       await this.git.push(['-u', 'origin', branchName]);
     } catch (err) {

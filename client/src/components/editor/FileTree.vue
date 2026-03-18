@@ -67,7 +67,7 @@ export default {
         if (!response.ok) {
           throw new Error('Failed to load file tree')
         }
-        this.tree = await response.json()
+        this.tree = this.sortHiddenLast(await response.json())
         this.expandToCurrentFile()
       } catch (err) {
         this.error = err.message
@@ -84,6 +84,21 @@ export default {
         this.expandedDirs[path] = true
       }
       this.expandedDirs = { ...this.expandedDirs }
+    },
+    sortHiddenLast(items) {
+      if (!items) return []
+      return items
+        .map(item => {
+          if (item.type === 'directory' && item.children) {
+            return { ...item, children: this.sortHiddenLast(item.children) }
+          }
+          return item
+        })
+        .sort((a, b) => {
+          const aHidden = a.type === 'directory' && a.name === 'hidden' ? 1 : 0
+          const bHidden = b.type === 'directory' && b.name === 'hidden' ? 1 : 0
+          return aHidden - bHidden
+        })
     },
     toggleDir(dirPath) {
       if (this.expandedDirs[dirPath]) {

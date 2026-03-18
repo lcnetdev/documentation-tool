@@ -7,7 +7,8 @@
       @click="$emit('toggle-dir', item.path)"
     >
       <span class="tree-arrow">{{ isExpanded ? '&#9662;' : '&#9656;' }}</span>
-      <span class="tree-icon folder-icon"></span>
+      <span v-if="isHidden" class="tree-icon ghost-icon"></span>
+      <span v-else class="tree-icon folder-icon"></span>
       <span class="tree-name">{{ item.title || item.name }}</span>
       <button class="tree-action-btn tree-rename-btn" title="Rename directory" @click.stop="$emit('rename-dir', item.path)">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -64,6 +65,9 @@ export default {
   computed: {
     isExpanded() {
       return !!this.expandedDirs[this.item.path]
+    },
+    isHidden() {
+      return this.item.type === 'directory' && this.item.name === 'hidden'
     }
   },
   methods: {
@@ -119,6 +123,11 @@ export default {
 
 .folder-icon::before {
   content: '\1F4C1';
+  font-size: 11px;
+}
+
+.ghost-icon::before {
+  content: '\1F47B';
   font-size: 11px;
 }
 

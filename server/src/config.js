@@ -14,6 +14,7 @@ const config = {
   gitToken: process.env.GIT_TOKEN || '',
   nodeEnv: process.env.NODE_ENV || 'development',
   basePath: normalizedBase,
+  gitPushEnabled: process.env.GIT_PUSH_ENABLED !== 'false',
 };
 
 module.exports = config;

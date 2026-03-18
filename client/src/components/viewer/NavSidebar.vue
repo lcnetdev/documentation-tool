@@ -4,7 +4,7 @@
     <div v-else-if="error" class="sidebar-error">{{ error }}</div>
     <ul v-else class="tree-root">
       <NavSidebarItem
-        v-for="item in tree"
+        v-for="item in visibleTree"
         :key="item.path"
         :item="item"
         :repo-name="repoName"
@@ -37,6 +37,11 @@ export default {
     }
   },
   emits: ['navigate'],
+  computed: {
+    visibleTree() {
+      return this.filterHidden(this.tree)
+    }
+  },
   data() {
     return {
       tree: [],
@@ -93,6 +98,17 @@ export default {
     },
     onNavigate(filePath) {
       this.$emit('navigate', filePath)
+    },
+    filterHidden(items) {
+      if (!items) return []
+      return items
+        .filter(item => item.name !== 'hidden')
+        .map(item => {
+          if (item.type === 'directory' && item.children) {
+            return { ...item, children: this.filterHidden(item.children) }
+          }
+          return item
+        })
     }
   }
 }
