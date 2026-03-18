@@ -656,8 +656,9 @@ export default {
 .login-btn { width: 100%; padding: 10px; background: var(--color-primary); color: #fff; border: none; border-radius: 4px; font-size: 14px; font-weight: 500; cursor: pointer; }
 .login-btn:hover { background: var(--color-primary-hover); }
 .editor-layout { display: flex; height: 100vh; overflow: hidden; }
-.editor-filetree { width: 250px; min-width: 250px; background: var(--bg-surface); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; overflow-y: auto; }
-.filetree-header { padding: 12px 16px; border-bottom: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 8px; }
+.editor-filetree { width: 250px; min-width: 250px; background: var(--bg-surface); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+.editor-filetree :deep(.file-tree) { flex: 1 1 0; min-height: 0; overflow-y: auto; padding-bottom: 48px; }
+.filetree-header { padding: 12px 16px; border-bottom: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; }
 .filetree-title-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .filetree-header h3 { margin: 0; font-size: 13px; font-weight: 600; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .branch-badge { font-size: 10px; padding: 2px 6px; background: var(--color-badge-bg); color: var(--color-badge-text); border-radius: 3px; white-space: nowrap; flex-shrink: 0; }
@@ -666,7 +667,7 @@ export default {
 .collapse-btn:hover { background: var(--bg-surface-active); }
 .expand-btn-editor { display: flex; align-items: center; justify-content: center; width: 24px; background: var(--bg-surface-alt); border: none; border-right: 1px solid var(--border-color); cursor: pointer; color: var(--text-tertiary); font-size: 16px; font-weight: bold; flex-shrink: 0; }
 .expand-btn-editor:hover { background: var(--bg-surface-hover); }
-.filetree-toolbar { display: flex; gap: 0; border-bottom: 1px solid var(--border-color); }
+.filetree-toolbar { display: flex; gap: 0; border-bottom: 1px solid var(--border-color); flex-shrink: 0; }
 .filetree-toolbar-btn { flex: 1; padding: 6px 0; font-size: 11px; font-weight: 500; background: var(--bg-surface-hover); border: none; border-right: 1px solid var(--border-color); cursor: pointer; color: var(--text-tertiary); text-align: center; }
 .filetree-toolbar-btn:last-child { border-right: none; }
 .filetree-toolbar-btn:hover { background: var(--bg-surface-active); color: var(--text-primary); }
