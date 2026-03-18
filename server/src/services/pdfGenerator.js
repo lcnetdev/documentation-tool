@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const PDFDocument = require('pdfkit');
 const { parseNav } = require('./fileTree');
+const { processIncludes, prependGlobalStyle } = require('./includeProcessor');
 
 /**
  * Per-repo state:
@@ -456,7 +457,8 @@ function renderMarkdownFile(doc, repoPath, filePath, destinations) {
   const fullPath = path.join(repoPath, filePath);
   if (!fs.existsSync(fullPath)) return;
 
-  const content = fs.readFileSync(fullPath, 'utf-8');
+  const rawContent = fs.readFileSync(fullPath, 'utf-8');
+  const content = prependGlobalStyle(processIncludes(rawContent, repoPath, filePath), repoPath);
   const lines = content.split('\n');
 
   let inCodeBlock = false;
@@ -525,6 +527,33 @@ function renderMarkdownFile(doc, repoPath, filePath, destinations) {
 
     // Skip table separator lines that appear without a header (shouldn't happen, but defensive)
     if (isTableSeparator(line)) {
+      continue;
+    }
+
+    // HTML block detection: skip <style>, <div>, <details>, <summary>, and other HTML tags
+    const trimmedLine = line.trim();
+
+    // Track <style> blocks — skip entirely
+    if (trimmedLine.toLowerCase().startsWith('<style')) {
+      // Skip until </style>
+      while (i < lines.length && !lines[i].toLowerCase().includes('</style>')) {
+        i++;
+      }
+      continue;
+    }
+
+    // Skip HTML comments (single-line and multi-line)
+    if (trimmedLine.startsWith('<!--')) {
+      if (!trimmedLine.includes('-->')) {
+        while (i < lines.length && !lines[i].includes('-->')) {
+          i++;
+        }
+      }
+      continue;
+    }
+
+    // Skip self-closing and standalone HTML tags (div, /div, details, summary, ul, ol, li, kbd, mark, sup, sub, etc.)
+    if (/^<\/?(div|details|summary|ul|ol|li|kbd|mark|sup|sub|span|br|p|section|article|nav|header|footer|main|aside)\b[^>]*>$/i.test(trimmedLine)) {
       continue;
     }
 
@@ -772,4 +801,33 @@ function ensurePdf(repoPath, repoName) {
   }
 }
 
-module.exports = { startBuild, getStatus, invalidateCache, ensurePdf };
+/**
+ * Build a PDF for a single markdown file. Returns a Buffer.
+ */
+function buildSinglePagePdf(repoPath, filePath) {
+  return new Promise((resolve, reject) => {
+    const destinations = new Set([filePath]);
+
+    const doc = new PDFDocument({
+      size: 'LETTER',
+      margins: { top: MARGIN, bottom: MARGIN, left: MARGIN, right: MARGIN },
+      bufferPages: true,
+      autoFirstPage: true,
+      info: {
+        Title: filePath,
+        Author: 'Documentation Tool',
+      },
+    });
+
+    const chunks = [];
+    doc.on('data', chunk => chunks.push(chunk));
+    doc.on('end', () => resolve(Buffer.concat(chunks)));
+    doc.on('error', reject);
+
+    doc.addNamedDestination(filePath);
+    renderMarkdownFile(doc, repoPath, filePath, destinations);
+    doc.end();
+  });
+}
+
+module.exports = { startBuild, getStatus, invalidateCache, ensurePdf, buildSinglePagePdf };

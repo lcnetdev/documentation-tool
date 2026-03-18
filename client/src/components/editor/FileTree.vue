@@ -95,9 +95,10 @@ export default {
           return item
         })
         .sort((a, b) => {
-          const aHidden = a.type === 'directory' && a.name === 'hidden' ? 1 : 0
-          const bHidden = b.type === 'directory' && b.name === 'hidden' ? 1 : 0
-          return aHidden - bHidden
+          const specialDirs = ['hidden', 'subpages']
+          const aSpecial = a.type === 'directory' && specialDirs.includes(a.name) ? 1 : 0
+          const bSpecial = b.type === 'directory' && specialDirs.includes(b.name) ? 1 : 0
+          return aSpecial - bSpecial
         })
     },
     toggleDir(dirPath) {

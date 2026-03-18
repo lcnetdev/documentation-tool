@@ -49,18 +49,29 @@
           </nav>
         </div>
         <div class="content-header-right">
-          <button
-            v-if="pdfStatus === 'ready'"
-            class="download-pdf-btn"
-            @click="downloadPdf"
-            title="Download PDF"
-          >
-            PDF
-          </button>
-          <span v-else-if="pdfStatus === 'building'" class="pdf-building" title="PDF is being generated">
-            <span class="saving-spinner"></span>
-            Building PDF...
-          </span>
+          <div class="download-dropdown" ref="downloadDropdown">
+            <button class="download-btn" @click="showDownloadMenu = !showDownloadMenu">
+              Download &#9662;
+            </button>
+            <div v-if="showDownloadMenu" class="download-menu">
+              <button
+                v-if="pdfStatus === 'ready'"
+                class="download-menu-item"
+                @click="downloadManualPdf"
+              >
+                Manual PDF
+              </button>
+              <span v-else class="download-menu-item disabled">
+                Manual PDF (building...)
+              </span>
+              <button class="download-menu-item" @click="downloadPagePdf">
+                This Page PDF
+              </button>
+              <button class="download-menu-item" @click="downloadPageHtml">
+                This Page HTML
+              </button>
+            </div>
+          </div>
           <router-link
             :to="'/edit/' + repoName + '/' + currentFile"
             class="edit-link"
@@ -118,7 +129,8 @@ export default {
       pdfPollTimer: null,
       titleMap: {},
       repoInfo: null,
-      currentTheme: getTheme()
+      currentTheme: getTheme(),
+      showDownloadMenu: false
     }
   },
   computed: {
@@ -185,10 +197,12 @@ export default {
   mounted() {
     this.loadFile()
     window.addEventListener('keydown', this.handleKeydown)
+    window.addEventListener('click', this.handleOutsideClick)
     this.startPdfPolling()
   },
   beforeUnmount() {
     window.removeEventListener('keydown', this.handleKeydown)
+    window.removeEventListener('click', this.handleOutsideClick)
     this.stopPdfPolling()
   },
   methods: {
@@ -305,14 +319,38 @@ export default {
         this.pdfPollTimer = null
       }
     },
-    async downloadPdf() {
-      const url = withBase('/api/repos/' + this.repoName + '/pdf/download')
+    handleOutsideClick(e) {
+      if (this.showDownloadMenu && this.$refs.downloadDropdown && !this.$refs.downloadDropdown.contains(e.target)) {
+        this.showDownloadMenu = false
+      }
+    },
+    closeDownloadMenu() {
+      this.showDownloadMenu = false
+    },
+    triggerDownload(url, filename) {
       const a = document.createElement('a')
       a.href = url
-      a.download = this.repoName + '.pdf'
+      a.download = filename
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
+    },
+    downloadManualPdf() {
+      this.showDownloadMenu = false
+      const url = withBase('/api/repos/' + this.repoName + '/pdf/download')
+      this.triggerDownload(url, this.repoName + '.pdf')
+    },
+    downloadPagePdf() {
+      this.showDownloadMenu = false
+      const url = withBase('/api/repos/' + this.repoName + '/pdf/page/' + this.currentFile)
+      const filename = this.currentFile.replace(/\//g, '-').replace(/\.md$/, '') + '.pdf'
+      this.triggerDownload(url, filename)
+    },
+    downloadPageHtml() {
+      this.showDownloadMenu = false
+      const url = withBase('/api/repos/' + this.repoName + '/html/page/' + this.currentFile)
+      const filename = this.currentFile.replace(/\//g, '-').replace(/\.md$/, '') + '.html'
+      this.triggerDownload(url, filename)
     }
   }
 }
@@ -343,9 +381,14 @@ export default {
 .breadcrumb-link { color: var(--color-primary); text-decoration: none; white-space: nowrap; }
 .breadcrumb-link:hover { text-decoration: underline; }
 .breadcrumb-current { color: var(--text-tertiary); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.download-pdf-btn { padding: 4px 12px; font-size: 12px; background: var(--bg-surface-hover); border: 1px solid var(--border-color); border-radius: 4px; cursor: pointer; color: var(--text-tertiary); }
-.download-pdf-btn:hover { background: var(--bg-surface-active); }
-.pdf-building { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-faint); }
+.download-dropdown { position: relative; }
+.download-btn { padding: 4px 12px; font-size: 12px; background: var(--bg-surface-hover); border: 1px solid var(--border-color); border-radius: 4px; cursor: pointer; color: var(--text-tertiary); }
+.download-btn:hover { background: var(--bg-surface-active); }
+.download-menu { position: absolute; top: 100%; right: 0; margin-top: 4px; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 6px; box-shadow: var(--shadow-md); min-width: 160px; z-index: 20; overflow: hidden; }
+.download-menu-item { display: block; width: 100%; padding: 8px 14px; font-size: 12px; text-align: left; background: none; border: none; cursor: pointer; color: var(--text-secondary); white-space: nowrap; }
+.download-menu-item:hover { background: var(--bg-surface-hover); }
+.download-menu-item.disabled { color: var(--text-faint); cursor: default; font-style: italic; }
+.download-menu-item.disabled:hover { background: none; }
 .edit-link { padding: 4px 12px; font-size: 12px; background: var(--color-primary); color: #fff; border-radius: 4px; text-decoration: none; }
 .edit-link:hover { background: var(--color-primary-hover); }
 .content-body { flex: 1; padding: 24px 48px; max-width: 900px; }

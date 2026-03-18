@@ -102,7 +102,7 @@ export default {
     filterHidden(items) {
       if (!items) return []
       return items
-        .filter(item => item.name !== 'hidden')
+        .filter(item => item.name !== 'hidden' && item.name !== 'subpages' && item.name !== 'global-style.md')
         .map(item => {
           if (item.type === 'directory' && item.children) {
             return { ...item, children: this.filterHidden(item.children) }

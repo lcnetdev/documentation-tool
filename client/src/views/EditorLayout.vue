@@ -334,7 +334,7 @@ export default {
       this.error = null
       try {
         const response = await apiFetch(
-          '/api/repos/' + this.repoName + '/file/' + this.currentFile
+          '/api/repos/' + this.repoName + '/file/' + this.currentFile + '?raw'
         )
         if (!response.ok) {
           throw new Error('Failed to load file: ' + response.statusText)

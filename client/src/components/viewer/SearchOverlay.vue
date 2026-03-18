@@ -120,7 +120,7 @@ export default {
         const allResults = data.results || []
         this.results = allResults.filter(group => {
           const parts = group.file.split('/')
-          return !parts.some(part => part === 'hidden')
+          return !parts.some(part => part === 'hidden' || part === 'subpages') && group.file !== 'global-style.md'
         })
       } catch (err) {
         this.results = []

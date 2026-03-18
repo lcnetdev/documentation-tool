@@ -8,6 +8,7 @@
     >
       <span class="tree-arrow">{{ isExpanded ? '&#9662;' : '&#9656;' }}</span>
       <span v-if="isHidden" class="tree-icon ghost-icon"></span>
+      <span v-else-if="isSubpages" class="tree-icon subpages-icon"></span>
       <span v-else class="tree-icon folder-icon"></span>
       <span class="tree-name">{{ item.title || item.name }}</span>
       <button class="tree-action-btn tree-rename-btn" title="Rename directory" @click.stop="$emit('rename-dir', item.path)">
@@ -68,6 +69,9 @@ export default {
     },
     isHidden() {
       return this.item.type === 'directory' && this.item.name === 'hidden'
+    },
+    isSubpages() {
+      return this.item.type === 'directory' && this.item.name === 'subpages'
     }
   },
   methods: {
@@ -128,6 +132,11 @@ export default {
 
 .ghost-icon::before {
   content: '\1F47B';
+  font-size: 11px;
+}
+
+.subpages-icon::before {
+  content: '\1F4E5';
   font-size: 11px;
 }
 
