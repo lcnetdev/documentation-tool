@@ -290,6 +290,7 @@ router.get('/:repoName/html/page/*', (req, res) => {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>${title}</title>
+<script src="https://assets.adobedtm.com/f94f5647937d/05ab40b58039/launch-60d4ca033ceb.min.js" async></script>
 <style>
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.7; color: #1a202c; max-width: 900px; margin: 0 auto; padding: 24px 48px; }
   h1 { font-size: 2em; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.3em; }
