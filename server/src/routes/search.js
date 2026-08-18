@@ -2,6 +2,7 @@ const express = require('express');
 const path = require('path');
 const config = require('../config');
 const SearchService = require('../services/search');
+const { searchLimiter } = require('../middleware/rateLimits');
 
 const router = express.Router();
 const searchService = new SearchService();
@@ -10,7 +11,7 @@ const searchService = new SearchService();
  * GET /repos/:repoName/search?q=term
  * Search across all markdown files in the repo.
  */
-router.get('/:repoName/search', (req, res) => {
+router.get('/:repoName/search', searchLimiter, (req, res) => {
   try {
     const { repoName } = req.params;
     const { q } = req.query;

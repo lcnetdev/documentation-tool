@@ -3,7 +3,8 @@ services:
     build: .
     ports:
       - "4580:4580"
-      - "5173:5173"
+      # Vite dev server: localhost only — never expose dev tooling publicly
+      - "127.0.0.1:5173:5173"
     volumes:
       - ./server:/app/server
       - ./client:/app/client

@@ -1,10 +1,12 @@
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
+const DOMPurify = require('isomorphic-dompurify');
 const config = require('../config');
-const { getTree, readFile, parseNav } = require('../services/fileTree');
+const { getTree, readFile, parseNav, hasHiddenSegment } = require('../services/fileTree');
 const { processIncludes, prependGlobalStyle } = require('../services/includeProcessor');
 const { getStatus, buildSinglePagePdf } = require('../services/pdfGenerator');
+const { heavyLimiter } = require('../middleware/rateLimits');
 const MarkdownIt = require('markdown-it');
 const RepoMeta = require('../services/repoMeta');
 
@@ -97,6 +99,9 @@ router.get('/:repoName/file/*', (req, res) => {
       : prependGlobalStyle(processIncludes(rawContent, repoPath, filePath), repoPath);
     res.json({ content, path: filePath });
   } catch (err) {
+    if (err.status === 403) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
     if (err.code === 'ENOENT') {
       return res.status(404).json({ error: 'File not found' });
     }
@@ -138,10 +143,11 @@ router.get('/:repoName/images/*', (req, res) => {
 
     const fullPath = path.join(repoPath, 'images', imagePath);
 
-    // Prevent path traversal
+    // Prevent path traversal and reads of dotfiles (.git etc.)
     const resolved = path.resolve(fullPath);
     const repoResolved = path.resolve(repoPath);
-    if (!resolved.startsWith(repoResolved + path.sep)) {
+    if (!resolved.startsWith(repoResolved + path.sep)
+        || hasHiddenSegment(path.relative(repoResolved, resolved))) {
       return res.status(403).json({ error: 'Access denied' });
     }
 
@@ -149,6 +155,10 @@ router.get('/:repoName/images/*', (req, res) => {
       return res.status(404).json({ error: 'Image not found' });
     }
 
+    // Neutralize stored-XSS via uploaded SVG/HTML: no scripts run when a
+    // repo file is opened directly in the browser from this route.
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Content-Security-Policy', "default-src 'none'; style-src 'unsafe-inline'; sandbox");
     res.sendFile(resolved);
   } catch (err) {
     res.status(500).json({ error: 'Failed to serve image', details: err.message });
@@ -195,7 +205,7 @@ router.get('/:repoName/pdf/download', (req, res) => {
  * GET /repos/:repoName/pdf/page/*
  * Generate and download a PDF for a single page.
  */
-router.get('/:repoName/pdf/page/*', async (req, res) => {
+router.get('/:repoName/pdf/page/*', heavyLimiter, async (req, res) => {
   try {
     const repoPath = path.join(config.docsDir, req.params.repoName);
     const filePath = req.params[0];
@@ -204,7 +214,15 @@ router.get('/:repoName/pdf/page/*', async (req, res) => {
       return res.status(400).json({ error: 'File path is required' });
     }
 
+    // Prevent path traversal and reads of dotfiles (.git etc.)
     const fullPath = path.join(repoPath, filePath);
+    const resolved = path.resolve(fullPath);
+    const repoResolved = path.resolve(repoPath);
+    if (!resolved.startsWith(repoResolved + path.sep)
+        || hasHiddenSegment(path.relative(repoResolved, resolved))) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
     if (!fs.existsSync(fullPath)) {
       return res.status(404).json({ error: 'File not found' });
     }
@@ -225,7 +243,7 @@ router.get('/:repoName/pdf/page/*', async (req, res) => {
  * Generate and download a self-contained HTML file for a single page.
  * Images are base64-encoded inline.
  */
-router.get('/:repoName/html/page/*', (req, res) => {
+router.get('/:repoName/html/page/*', heavyLimiter, (req, res) => {
   try {
     const repoName = req.params.repoName;
     const repoPath = path.join(config.docsDir, repoName);
@@ -239,7 +257,9 @@ router.get('/:repoName/html/page/*', (req, res) => {
     const content = prependGlobalStyle(processIncludes(rawContent, repoPath, filePath), repoPath);
 
     const md = new MarkdownIt({ html: true, linkify: true, breaks: true });
-    let html = md.render(content);
+    // Raw HTML in markdown is allowed for layout, but scripts/event handlers
+    // must not survive into the downloadable standalone page (stored XSS).
+    let html = DOMPurify.sanitize(md.render(content), { ADD_TAGS: ['style'] });
 
     // Base64-encode all local images
     html = html.replace(/<img\s+([^>]*?)src="([^"]+)"([^>]*?)>/g, (match, before, src, after) => {
@@ -280,9 +300,10 @@ router.get('/:repoName/html/page/*', (req, res) => {
       }
     });
 
-    // Extract title from first heading
+    // Extract title from first heading (escaped — it lands inside <title>)
     const titleMatch = rawContent.match(/^#{1,3}\s+(.+)$/m);
-    const title = titleMatch ? titleMatch[1].trim() : filePath;
+    const title = (titleMatch ? titleMatch[1].trim() : filePath)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
     const fullHtml = `<!DOCTYPE html>
 <html lang="en">
@@ -324,6 +345,9 @@ ${html}
     res.setHeader('Content-Disposition', 'attachment; filename="' + filename + '"');
     res.send(fullHtml);
   } catch (err) {
+    if (err.status === 403) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
     if (err.code === 'ENOENT') {
       return res.status(404).json({ error: 'File not found' });
     }

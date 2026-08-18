@@ -3,54 +3,49 @@ const fs = require('fs');
 const simpleGit = require('simple-git');
 const config = require('../config');
 
+/**
+ * Per-invocation git config that authenticates HTTPS operations via an
+ * Authorization header (passed as `git -c ...`), so the token is never
+ * written to .git/config or any other file on disk.
+ */
+function authGitConfig() {
+  if (!config.gitToken) return [];
+  const user = config.gitUser || 'x-access-token';
+  const basic = Buffer.from(`${user}:${config.gitToken}`).toString('base64');
+  return [`http.extraHeader=Authorization: Basic ${basic}`];
+}
+
 class GitService {
   constructor(repoPath) {
     this.repoPath = repoPath;
-    this.git = simpleGit(repoPath);
-    this._ensureAuth();
+    this.git = simpleGit({ baseDir: repoPath, config: authGitConfig() });
+    this._scrubStoredCredentials();
   }
 
   /**
-   * Ensure the origin remote URL has credentials embedded.
-   * Handles repos that were manually cloned without a token in the URL.
+   * Remove any credentials previously embedded in remote URLs in
+   * .git/config (older versions of this service wrote the token there,
+   * where it was readable through the public file routes).
    */
-  _ensureAuth() {
-    if (!config.gitToken) {
-      console.warn('[GitService] _ensureAuth: No GIT_TOKEN configured, skipping auth injection');
-      return;
-    }
-
+  _scrubStoredCredentials() {
     try {
       const gitConfigPath = path.join(this.repoPath, '.git', 'config');
-      if (!fs.existsSync(gitConfigPath)) {
-        console.warn(`[GitService] _ensureAuth: No .git/config found at ${gitConfigPath}`);
-        return;
+      if (!fs.existsSync(gitConfigPath)) return;
+
+      const gitConfig = fs.readFileSync(gitConfigPath, 'utf-8');
+      const scrubbed = gitConfig.replace(/(url\s*=\s*https:\/\/)[^@\s]+@/g, '$1');
+      if (scrubbed !== gitConfig) {
+        fs.writeFileSync(gitConfigPath, scrubbed, 'utf-8');
+        console.log('[GitService] Removed embedded credentials from .git/config');
       }
-
-      let gitConfig = fs.readFileSync(gitConfigPath, 'utf-8');
-      const urlMatch = gitConfig.match(/url\s*=\s*(https:\/\/[^\s]+)/);
-      if (!urlMatch) {
-        console.warn('[GitService] _ensureAuth: No https URL found in .git/config');
-        return;
-      }
-
-      const currentUrl = urlMatch[1];
-      // Skip if already has credentials
-      if (currentUrl.includes('@')) return;
-
-      const prefix = config.gitUser ? config.gitUser + ':' : '';
-      const authUrl = currentUrl.replace('https://', `https://${prefix}${config.gitToken}@`);
-      gitConfig = gitConfig.replace(currentUrl, authUrl);
-      fs.writeFileSync(gitConfigPath, gitConfig, 'utf-8');
-      console.log('[GitService] _ensureAuth: Injected credentials into remote URL');
     } catch (err) {
-      console.error('[GitService] _ensureAuth failed:', err.message);
+      console.error('[GitService] credential scrub failed:', err.message);
     }
   }
 
   /**
    * Clone a repo into docs/{repoName} if it doesn't already exist.
-   * Uses GIT_TOKEN for authentication in the URL if available.
+   * Authenticates via header (authGitConfig), keeping the URL clean.
    */
   async cloneIfMissing(repoName, remoteUrl) {
     const repoDir = path.join(config.docsDir, repoName);
@@ -60,32 +55,37 @@ class GitService {
       return;
     }
 
-    // Insert token into URL for authentication
-    let authUrl = remoteUrl;
-    if (config.gitToken) {
-      authUrl = remoteUrl.replace(
-        'https://',
-        `https://${config.gitUser ? config.gitUser + ':' : ''}${config.gitToken}@`
-      );
-    }
-
     console.log(`Cloning ${repoName} from ${remoteUrl}...`);
-    await simpleGit().clone(authUrl, repoDir);
+    await simpleGit({ config: authGitConfig() }).clone(remoteUrl, repoDir);
     console.log(`Successfully cloned ${repoName}.`);
+  }
+
+  /**
+   * Remove credentials from text before it reaches logs or API responses:
+   * userinfo in URLs (https://user:token@host) and the raw token itself,
+   * which git may echo back in error messages.
+   */
+  static scrubSecrets(text) {
+    let out = String(text).replace(/(https?:\/\/)[^@\s/]+@/g, '$1');
+    if (config.gitToken) {
+      out = out.split(config.gitToken).join('****');
+    }
+    return out;
   }
 
   _logGitError(label, err) {
     console.error(`[GitService] ${label}:`);
-    console.error(`  message: ${err.message}`);
+    console.error(`  message: ${GitService.scrubSecrets(err.message)}`);
     if (err.git) {
-      if (err.git.stdErr) console.error(`  stderr: ${err.git.stdErr.trim()}`);
-      if (err.git.stdOut) console.error(`  stdout: ${err.git.stdOut.trim()}`);
+      if (err.git.stdErr) console.error(`  stderr: ${GitService.scrubSecrets(err.git.stdErr.trim())}`);
+      if (err.git.stdOut) console.error(`  stdout: ${GitService.scrubSecrets(err.git.stdOut.trim())}`);
     }
-    if (err.stack) console.error(`  stack: ${err.stack}`);
+    if (err.stack) console.error(`  stack: ${GitService.scrubSecrets(err.stack)}`);
   }
 
   /**
    * Extract a detailed error message including git stderr/stdout when available.
+   * Credentials are scrubbed — this string is sent in API responses.
    */
   static formatError(err) {
     let msg = err.message || String(err);
@@ -93,7 +93,7 @@ class GitService {
       if (err.git.stdErr) msg += '\ngit stderr: ' + err.git.stdErr.trim();
       if (err.git.stdOut) msg += '\ngit stdout: ' + err.git.stdOut.trim();
     }
-    return msg;
+    return GitService.scrubSecrets(msg);
   }
 
   /**

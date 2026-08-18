@@ -122,6 +122,17 @@ function getTree(repoPath, relativePath = '') {
 }
 
 /**
+ * True if any segment of a relative path is a dotfile/dot-directory
+ * (.git, .pdf-cache, .env, .gitignore, ...). These must never be
+ * readable through public routes — .git/config in particular.
+ */
+function hasHiddenSegment(relPath) {
+  return String(relPath)
+    .split(/[\\/]+/)
+    .some((seg) => seg.startsWith('.'));
+}
+
+/**
  * Read and return the content of a file.
  */
 function readFile(repoPath, filePath) {
@@ -131,7 +142,15 @@ function readFile(repoPath, filePath) {
   const resolved = path.resolve(fullPath);
   const repoResolved = path.resolve(repoPath);
   if (!resolved.startsWith(repoResolved + path.sep) && resolved !== repoResolved) {
-    throw new Error('Path traversal not allowed');
+    const err = new Error('Path traversal not allowed');
+    err.status = 403;
+    throw err;
+  }
+
+  if (hasHiddenSegment(path.relative(repoResolved, resolved))) {
+    const err = new Error('Access denied');
+    err.status = 403;
+    throw err;
   }
 
   return fs.readFileSync(fullPath, 'utf-8');
@@ -232,4 +251,4 @@ function updateNavOrder(repoPath, order) {
   fs.writeFileSync(indexPath, content, 'utf-8');
 }
 
-module.exports = { getTree, readFile, parseNav, parseNavOrder, updateNavOrder };
+module.exports = { getTree, readFile, parseNav, parseNavOrder, updateNavOrder, hasHiddenSegment };

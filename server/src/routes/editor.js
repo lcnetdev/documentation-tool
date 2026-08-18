@@ -1,7 +1,7 @@
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
-const { execSync } = require('child_process');
+const { execFileSync } = require('child_process');
 const multer = require('multer');
 const config = require('../config');
 const GitService = require('../services/git');
@@ -25,8 +25,31 @@ function normalizeBranchName(raw) {
     .slice(0, 60);
 }
 
-// Configure multer for file uploads (temp directory)
-const upload = multer({ dest: path.join(__dirname, '../../uploads') });
+// Configure multer for image uploads (temp directory).
+// Only common raster image types are accepted — SVG/HTML uploads would be
+// served same-origin and enable stored XSS.
+const ALLOWED_IMAGE_EXTS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp']);
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+
+const upload = multer({
+  dest: path.join(__dirname, '../../uploads'),
+  limits: { fileSize: MAX_IMAGE_BYTES, files: 1 },
+  fileFilter: (req, file, cb) => {
+    const ext = path.extname(file.originalname || '').toLowerCase();
+    if (!ALLOWED_IMAGE_EXTS.has(ext) || !/^image\//.test(file.mimetype || '')) {
+      return cb(new Error('Only png, jpg, jpeg, gif, and webp images are allowed'));
+    }
+    cb(null, true);
+  },
+});
+
+// Wraps upload.single so validation/limit errors return 400 instead of 500
+function uploadImage(req, res, next) {
+  upload.single('image')(req, res, (err) => {
+    if (err) return res.status(400).json({ error: err.message });
+    next();
+  });
+}
 
 /**
  * POST /repos/:repoName/file/*
@@ -192,7 +215,7 @@ router.delete('/:repoName/directory/*', (req, res) => {
  * POST /repos/:repoName/images/upload
  * Upload an image file via multipart form data.
  */
-router.post('/:repoName/images/upload', upload.single('image'), (req, res) => {
+router.post('/:repoName/images/upload', uploadImage, (req, res) => {
   try {
     const repoName = req.params.repoName;
     const repoPath = path.join(config.docsDir, repoName);
@@ -204,7 +227,7 @@ router.post('/:repoName/images/upload', upload.single('image'), (req, res) => {
     const relativePath = saveUploadedImage(repoPath, req.file);
     res.json({ path: relativePath });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to upload image', details: err.message });
+    res.status(err.status || 500).json({ error: 'Failed to upload image', details: err.message });
   }
 });
 
@@ -219,14 +242,19 @@ router.post('/:repoName/images/paste', (req, res) => {
     const repoPath = path.join(config.docsDir, repoName);
     const { imageData, filename } = req.body;
 
-    if (!imageData) {
+    if (!imageData || typeof imageData !== 'string') {
       return res.status(400).json({ error: 'imageData is required' });
+    }
+
+    // Base64 inflates ~4/3, so this caps the decoded image at ~10 MB
+    if (imageData.length > 14 * 1024 * 1024) {
+      return res.status(413).json({ error: 'Pasted image is too large (max 10 MB)' });
     }
 
     const relativePath = savePastedImage(repoPath, imageData, filename);
     res.json({ path: relativePath });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to save pasted image', details: err.message });
+    res.status(err.status || 500).json({ error: 'Failed to save pasted image', details: err.message });
   }
 });
 
@@ -241,7 +269,7 @@ router.get('/:repoName/git/status', async (req, res) => {
     const status = await gitService.status();
     res.json(status);
   } catch (err) {
-    res.status(500).json({ error: 'Failed to get git status', details: err.message });
+    res.status(500).json({ error: 'Failed to get git status', details: GitService.formatError(err) });
   }
 });
 
@@ -256,7 +284,7 @@ router.get('/:repoName/git/log', async (req, res) => {
     const log = await gitService.log(20);
     res.json(log);
   } catch (err) {
-    res.status(500).json({ error: 'Failed to get git log', details: err.message });
+    res.status(500).json({ error: 'Failed to get git log', details: GitService.formatError(err) });
   }
 });
 
@@ -271,7 +299,7 @@ router.post('/:repoName/git/pull', async (req, res) => {
     const result = await gitService.pull();
     res.json(result);
   } catch (err) {
-    res.status(500).json({ error: 'Failed to pull', details: err.message });
+    res.status(500).json({ error: 'Failed to pull', details: GitService.formatError(err) });
   }
 });
 
@@ -691,7 +719,10 @@ router.post('/:repoName/merge', (req, res) => {
       }
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
       const backupFile = path.join(backupDir, parentRepo + '-' + timestamp + '.zip');
-      execSync('zip -9r "' + backupFile + '" "' + parentRepo + '"', {
+      // execFileSync: arguments are passed directly, never through a shell.
+      // .git is excluded — backups don't need it and must not archive
+      // repository internals.
+      execFileSync('zip', ['-9r', backupFile, parentRepo, '-x', parentRepo + '/.git/*'], {
         cwd: config.docsDir,
         timeout: 120000
       });

@@ -4,11 +4,12 @@
 
 <script>
 import { createMarkdownRenderer } from '@/composables/useMarkdown'
+import DOMPurify from 'dompurify'
 import mermaid from 'mermaid'
 
 mermaid.initialize({
   startOnLoad: false,
-  securityLevel: 'loose'
+  securityLevel: 'strict'
 })
 
 export default {
@@ -34,7 +35,9 @@ export default {
   computed: {
     renderedHtml() {
       const md = createMarkdownRenderer(this.repoName, this.currentFile, this.mode)
-      return md.render(this.content || '')
+      // Raw HTML in markdown is allowed for layout, but scripts and event
+      // handlers must never reach v-html (stored XSS for every viewer).
+      return DOMPurify.sanitize(md.render(this.content || ''), { ADD_TAGS: ['style'] })
     }
   },
   watch: {

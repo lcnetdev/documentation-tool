@@ -146,3 +146,6 @@ docs/
 
 # Backup zips (keep directory, ignore contents)
 docs_backup/*.zip
+
+# Security audit report (local only)
+SECURITY_AUDIT.md

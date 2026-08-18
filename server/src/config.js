@@ -9,7 +9,8 @@ const normalizedBase = basePath === '/' ? '/' : basePath + '/';
 const config = {
   port: process.env.PORT || 4580,
   docsDir: path.resolve(__dirname, '../../docs'),
-  editorPassword: process.env.EDITOR_PASSWORD || 'changeme',
+  // No default: startup fails if unset (see index.js); auth rejects empty
+  editorPassword: process.env.EDITOR_PASSWORD || '',
   gitUser: process.env.GIT_USER || '',
   gitToken: process.env.GIT_TOKEN || '',
   nodeEnv: process.env.NODE_ENV || 'development',
