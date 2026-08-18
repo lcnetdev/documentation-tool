@@ -49,6 +49,11 @@
           </nav>
         </div>
         <div class="content-header-right">
+          <button class="toolbar-search" @click="showSearch = true" title="Search this manual">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            <span class="toolbar-search-label">Search manual</span>
+            <kbd class="toolbar-search-kbd">{{ searchShortcut }}</kbd>
+          </button>
           <div class="download-dropdown" ref="downloadDropdown">
             <button class="download-btn" @click="showDownloadMenu = !showDownloadMenu">
               Download &#9662;
@@ -149,6 +154,10 @@ export default {
     },
     isBranch() {
       return this.repoInfo && this.repoInfo.type === 'branch'
+    },
+    searchShortcut() {
+      const isMac = /Mac|iPhone|iPad/.test(navigator.platform || '')
+      return isMac ? '⌘K' : 'Ctrl K'
     },
     breadcrumbs() {
       if (!this.currentFile) return []
@@ -284,7 +293,8 @@ export default {
       this.$router.push('/view/' + this.repoName + '/' + filePath)
     },
     handleKeydown(e) {
-      if ((e.ctrlKey || e.metaKey) && (e.key === 'f' || e.key === 'k')) {
+      // Ctrl/Cmd+F is intentionally left to the browser's native find-in-page
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
         e.preventDefault()
         this.showSearch = !this.showSearch
       }
@@ -381,6 +391,11 @@ export default {
 .breadcrumb-link { color: var(--color-primary); text-decoration: none; white-space: nowrap; }
 .breadcrumb-link:hover { text-decoration: underline; }
 .breadcrumb-current { color: var(--text-tertiary); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.toolbar-search { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px 4px 10px; font-size: 12px; background: var(--bg-surface-hover); border: 1px solid var(--border-color); border-radius: 4px; cursor: pointer; color: var(--text-tertiary); min-width: 160px; text-align: left; }
+.toolbar-search:hover { background: var(--bg-surface-active); }
+.toolbar-search svg { flex-shrink: 0; }
+.toolbar-search-label { flex: 1; }
+.toolbar-search-kbd { font-family: inherit; font-size: 10px; padding: 1px 5px; border: 1px solid var(--border-medium); border-radius: 3px; background: var(--bg-surface); color: var(--text-muted); }
 .download-dropdown { position: relative; }
 .download-btn { padding: 4px 12px; font-size: 12px; background: var(--bg-surface-hover); border: 1px solid var(--border-color); border-radius: 4px; cursor: pointer; color: var(--text-tertiary); }
 .download-btn:hover { background: var(--bg-surface-active); }
