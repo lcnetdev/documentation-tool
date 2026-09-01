@@ -83,3 +83,46 @@ describe('createMarkdownRenderer', () => {
     })
   })
 })
+
+describe('fenced code blocks', () => {
+  function render(markdown) {
+    const md = createMarkdownRenderer('my-repo', 'index.md', 'view')
+    return md.render(markdown)
+  }
+
+  it('syntax-highlights known languages', () => {
+    const html = render('```js\nconst x = 1\n```')
+    expect(html).toContain('<pre><code class="language-js">')
+    expect(html).toContain('class="token keyword"')
+  })
+
+  it('leaves unknown and untagged languages as escaped text', () => {
+    expect(render('```text\n<b>\n```')).toContain('&lt;b&gt;')
+    expect(render('```\n<b>\n```')).toContain('&lt;b&gt;')
+    expect(render('```text\nplain\n```')).not.toContain('token')
+  })
+
+  it('wraps RDF/XML blocks for the tabbed viewer', () => {
+    const html = render('```xml\n<bf:Work rdf:about="http://x/1"/>\n```')
+    expect(html).toContain('<div class="rdf-block" data-rdf-format="rdfxml"><pre><code class="language-xml">')
+    expect(html).toContain('class="token namespace"')
+    expect(html).toContain('</code></pre></div>')
+  })
+
+  it('wraps explicit rdfxml fences even without rdf attributes', () => {
+    const html = render('```rdfxml\n<rdf:RDF/>\n```')
+    expect(html).toContain('class="rdf-block"')
+  })
+
+  it('does not wrap ordinary xml', () => {
+    const html = render('```xml\n<record><leader>x</leader></record>\n```')
+    expect(html).not.toContain('rdf-block')
+    expect(html).toContain('class="token tag"')
+  })
+
+  it('still renders mermaid blocks as diagrams', () => {
+    const html = render('```mermaid\ngraph LR; A-->B\n```')
+    expect(html).toContain('<pre class="mermaid">')
+    expect(html).not.toContain('token')
+  })
+})

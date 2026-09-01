@@ -26,7 +26,7 @@
       @click="$emit('select', item.path)"
       @dragstart="onDragStart"
     >
-      <span class="tree-icon file-icon"></span>
+      <span class="tree-icon" :class="iconClass" :title="iconTitle"></span>
       <span class="tree-name">{{ item.title || item.name }}</span>
     </div>
     <ul v-if="item.type === 'directory' && isExpanded && item.children" class="tree-children">
@@ -66,6 +66,24 @@ export default {
   computed: {
     isExpanded() {
       return !!this.expandedDirs[this.item.path]
+    },
+    /** index.md at the repo root marks the homepage, so it gets a house icon. */
+    isHome() {
+      return this.item.type !== 'directory' && this.item.path === 'index.md'
+    },
+    /** An index.md nested in a folder serves as that section's homepage. */
+    isSectionHome() {
+      return this.item.type !== 'directory' && !this.isHome && /(^|\/)index\.md$/.test(this.item.path)
+    },
+    iconClass() {
+      if (this.isHome) return 'home-icon'
+      if (this.isSectionHome) return 'section-home-icon'
+      return 'file-icon'
+    },
+    iconTitle() {
+      if (this.isHome) return 'Homepage'
+      if (this.isSectionHome) return 'Section homepage'
+      return null
     },
     isHidden() {
       return this.item.type === 'directory' && this.item.name === 'hidden'
@@ -142,6 +160,16 @@ export default {
 
 .file-icon::before {
   content: '\1F4C4';
+  font-size: 11px;
+}
+
+.home-icon::before {
+  content: '\1F3E0';
+  font-size: 11px;
+}
+
+.section-home-icon::before {
+  content: '\1F3E1';
   font-size: 11px;
 }
 

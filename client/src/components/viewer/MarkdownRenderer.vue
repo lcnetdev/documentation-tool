@@ -6,6 +6,8 @@
 import { createMarkdownRenderer } from '@/composables/useMarkdown'
 import DOMPurify from 'dompurify'
 import mermaid from 'mermaid'
+import { createApp } from 'vue'
+import RdfCodeBlock from './RdfCodeBlock.vue'
 
 mermaid.initialize({
   startOnLoad: false,
@@ -43,18 +45,53 @@ export default {
   watch: {
     renderedHtml() {
       this.$nextTick(() => {
+        this.mountRdfBlocks()
         this.renderMermaid()
         this.scrollToHash()
       })
     }
   },
+  created() {
+    // Vue apps we mount into RDF blocks — bookkeeping only, no reactivity needed
+    this.rdfApps = []
+  },
   mounted() {
     this.$nextTick(() => {
+      this.mountRdfBlocks()
       this.renderMermaid()
       this.scrollToHash()
     })
   },
+  beforeUnmount() {
+    this.unmountRdfBlocks()
+  },
   methods: {
+    /**
+     * Turns each `.rdf-block` wrapper the markdown renderer emitted into a
+     * live RdfCodeBlock app. Since v-html swaps out the DOM on every
+     * re-render, earlier apps get torn down first.
+     */
+    mountRdfBlocks() {
+      this.unmountRdfBlocks()
+      const container = this.$el
+      if (!container || !container.querySelectorAll) return
+      for (const el of container.querySelectorAll('.rdf-block')) {
+        const codeEl = el.querySelector('pre > code')
+        if (!codeEl) continue
+        const app = createApp(RdfCodeBlock, {
+          source: codeEl.textContent || '',
+          sourceHtml: codeEl.innerHTML
+        })
+        app.mount(el)
+        this.rdfApps.push(app)
+      }
+    },
+    unmountRdfBlocks() {
+      for (const app of this.rdfApps) {
+        try { app.unmount() } catch { /* DOM was already replaced */ }
+      }
+      this.rdfApps = []
+    },
     async renderMermaid() {
       const container = this.$el
       if (!container) return

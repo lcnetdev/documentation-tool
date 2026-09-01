@@ -11,10 +11,12 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@dagrejs/dagre": "^3.1.1",
     "dompurify": "^3.4.13",
     "markdown-it": "^14.0.0",
     "markdown-it-anchor": "^9.0.0",
     "mermaid": "^11.12.3",
+    "prismjs": "^1.30.0",
     "vue": "^3.4.0",
     "vue-router": "^4.3.0"
   },

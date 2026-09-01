@@ -2,6 +2,8 @@ import MarkdownIt from 'markdown-it'
 import markdownItAnchor from 'markdown-it-anchor'
 import { resolveRelativePath } from '@/utils/relativePath'
 import { withBase } from '@/utils/basePath'
+import { highlightCode } from '@/utils/highlight'
+import { looksLikeRdfXml } from '@/utils/rdf/detect'
 
 /**
  * Creates a configured markdown-it instance with custom image and link rendering.
@@ -15,7 +17,13 @@ export function createMarkdownRenderer(repoName, currentFilePath, mode) {
   const md = new MarkdownIt({
     html: true,
     linkify: true,
-    breaks: true
+    breaks: true,
+    // Highlight fenced blocks through Prism. An empty return tells
+    // markdown-it to fall back to plain escaped text.
+    highlight(str, lang) {
+      const result = highlightCode(str, lang)
+      return result ? result.html : ''
+    }
   })
 
   md.use(markdownItAnchor, {
@@ -27,12 +35,23 @@ export function createMarkdownRenderer(repoName, currentFilePath, mode) {
     })
   })
 
-  // Custom fence renderer for mermaid blocks
+  // Our own fence handling, for mermaid and RDF/XML blocks
   const defaultFence = md.renderer.rules.fence
   md.renderer.rules.fence = function (tokens, idx, options, env, self) {
     const token = tokens[idx]
-    if (token.info.trim().toLowerCase() === 'mermaid') {
+    const lang = token.info.trim().split(/\s+/)[0].toLowerCase()
+    if (lang === 'mermaid') {
       return '<pre class="mermaid">' + escapeHtml(token.content) + '</pre>'
+    }
+    // RDF/XML fences are wrapped in a div that MarkdownRenderer later turns
+    // into the tabbed RDF viewer (source / Turtle / JSON-LD / graph). The
+    // highlighted <pre> inside doubles as the no-JS fallback and as the place
+    // the raw text is read from.
+    if (looksLikeRdfXml(lang, token.content)) {
+      const highlighted = highlightCode(token.content, 'xml')
+      const inner = highlighted ? highlighted.html : escapeHtml(token.content)
+      return '<div class="rdf-block" data-rdf-format="rdfxml"><pre><code class="language-xml">' +
+        inner + '</code></pre></div>\n'
     }
     if (defaultFence) {
       return defaultFence(tokens, idx, options, env, self)

@@ -3,7 +3,7 @@
    ============================================ */
 :root {
   /* Backgrounds */
-  --bg-body: #f8f9fa;
+  --bg-body: #fdfdfd;
   --bg-surface: #fff;
   --bg-surface-alt: #f7fafc;
   --bg-surface-hover: #edf2f7;
@@ -26,6 +26,9 @@
 
   /* Interactive / Primary */
   --color-primary: #4a90d9;
+  /* Document links: darker than the primary accent for readable contrast on white */
+  --link-color: #2b6cb0;
+  --link-color-hover: #1a4d80;
   --color-primary-hover: #357abd;
   --color-primary-dark: #2b6cb0;
   --color-primary-bg: #ebf4ff;
@@ -53,8 +56,20 @@
   /* Code */
   --code-inline-bg: #f1f5f9;
   --code-inline-color: #e53e3e;
-  --code-block-bg: #1e293b;
-  --code-block-color: #e2e8f0;
+  --code-block-bg: #f6f8fa;
+  --code-block-color: #24292f;
+  --code-block-border: #e2e8f0;
+
+  /* Token colours, light theme (roughly GitHub's palette) */
+  --syntax-comment: #6e7781;
+  --syntax-punctuation: #57606a;
+  --syntax-tag: #116329;
+  --syntax-namespace: #8250df;
+  --syntax-attr: #0550ae;
+  --syntax-string: #0a3069;
+  --syntax-keyword: #cf222e;
+  --syntax-function: #8250df;
+  --syntax-operator: #953800;
 
   /* Blockquote */
   --blockquote-bg: #ebf8ff;
@@ -121,6 +136,8 @@
   --border-medium: #3d4455;
 
   --color-primary: #5b9ee6;
+  --link-color: #6cabf0;
+  --link-color-hover: #8fc0f5;
   --color-primary-hover: #4a8dda;
   --color-primary-dark: #7ab3f0;
   --color-primary-bg: rgba(91, 158, 230, 0.15);
@@ -145,6 +162,18 @@
   --code-inline-color: #fc8181;
   --code-block-bg: #0d1117;
   --code-block-color: #e2e8f0;
+  --code-block-border: #252a36;
+
+  /* Token colours, dark theme */
+  --syntax-comment: #8b949e;
+  --syntax-punctuation: #c9d1d9;
+  --syntax-tag: #7ee787;
+  --syntax-namespace: #d2a8ff;
+  --syntax-attr: #79c0ff;
+  --syntax-string: #a5d6ff;
+  --syntax-keyword: #ff7b72;
+  --syntax-function: #d2a8ff;
+  --syntax-operator: #ffa657;
 
   --blockquote-bg: rgba(91, 158, 230, 0.08);
   --blockquote-color: #7ab3f0;
@@ -502,6 +531,7 @@ h1, h2, h3, h4, h5, h6 {
   margin: 1em 0;
   padding: 16px;
   background: var(--code-block-bg);
+  border: 1px solid var(--code-block-border);
   border-radius: 6px;
   overflow-x: auto;
   line-height: 1.5;
@@ -534,11 +564,12 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .markdown-body a {
-  color: var(--color-primary);
+  color: var(--link-color);
   text-decoration: none;
 }
 
 .markdown-body a:hover {
+  color: var(--link-color-hover);
   text-decoration: underline;
 }
 
@@ -1057,4 +1088,100 @@ h1, h2, h3, h4, h5, h6 {
    ============================================ */
 .mermaid {
   text-align: center;
+}
+
+/* ============================================
+   Prism token colours
+   Every token type pulls from a --syntax-*
+   variable, so highlighted code swaps palette
+   along with the light/dark theme.
+   ============================================ */
+.markdown-body pre code .token.comment,
+.markdown-body pre code .token.prolog,
+.markdown-body pre code .token.doctype,
+.markdown-body pre code .token.cdata {
+  color: var(--syntax-comment);
+  font-style: italic;
+}
+
+.markdown-body pre code .token.punctuation {
+  color: var(--syntax-punctuation);
+}
+
+.markdown-body pre code .token.tag,
+.markdown-body pre code .token.selector,
+.markdown-body pre code .token.inserted {
+  color: var(--syntax-tag);
+}
+
+.markdown-body pre code .token.tag .token.punctuation {
+  color: var(--syntax-punctuation);
+}
+
+.markdown-body pre code .token.namespace,
+.markdown-body pre code .token.function .token.prefix {
+  color: var(--syntax-namespace);
+}
+
+.markdown-body pre code .token.attr-name,
+.markdown-body pre code .token.property,
+.markdown-body pre code .token.boolean,
+.markdown-body pre code .token.number,
+.markdown-body pre code .token.constant,
+.markdown-body pre code .token.symbol {
+  color: var(--syntax-attr);
+}
+
+.markdown-body pre code .token.attr-value,
+.markdown-body pre code .token.string,
+.markdown-body pre code .token.char,
+.markdown-body pre code .token.url,
+.markdown-body pre code .token.regex {
+  color: var(--syntax-string);
+}
+
+.markdown-body pre code .token.attr-value .token.punctuation,
+.markdown-body pre code .token.url .token.punctuation {
+  color: var(--syntax-string);
+}
+
+.markdown-body pre code .token.attr-value .token.punctuation.attr-equals {
+  color: var(--syntax-punctuation);
+}
+
+.markdown-body pre code .token.keyword,
+.markdown-body pre code .token.atrule,
+.markdown-body pre code .token.important,
+.markdown-body pre code .token.deleted {
+  color: var(--syntax-keyword);
+}
+
+.markdown-body pre code .token.function,
+.markdown-body pre code .token.class-name,
+.markdown-body pre code .token.builtin {
+  color: var(--syntax-function);
+}
+
+.markdown-body pre code .token.function .token.local-name {
+  color: var(--syntax-tag);
+}
+
+.markdown-body pre code .token.operator,
+.markdown-body pre code .token.entity,
+.markdown-body pre code .token.variable {
+  color: var(--syntax-operator);
+}
+
+.markdown-body pre code .token.bold {
+  font-weight: 600;
+}
+
+.markdown-body pre code .token.italic {
+  font-style: italic;
+}
+
+/* RDF/XML blocks: the wrapper the markdown renderer emits, left bare until
+   the tabbed viewer takes over (and kept as-is wherever JavaScript is off). */
+.markdown-body .rdf-block > pre {
+  margin: 1em 0;
 }
