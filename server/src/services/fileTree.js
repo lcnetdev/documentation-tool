@@ -1,4 +1,5 @@
 const fs = require('fs');
+const { isIgnoredDir, isIgnoredPath } = require('./ignored');
 const path = require('path');
 
 /**
@@ -28,7 +29,8 @@ function formatFilename(name) {
 
 /**
  * Recursively walk a directory and return a tree structure.
- * Excludes .git directory. Only includes .md files and directories
+ * Skips .git plus the ignored directories (config.ignoredDirs,
+ * meta-conversion for one). Only includes .md files and directories
  * that contain .md files (directly or nested).
  * Sorted: directories first, then files, alphabetically within each group.
  * Each item includes a `title` field (first # heading or formatted filename).
@@ -49,7 +51,7 @@ function getTree(repoPath, relativePath = '') {
   const result = [];
 
   for (const entry of entries) {
-    if (entry.name === '.git') continue;
+    if (isIgnoredDir(entry.name)) continue;
 
     const entryRelativePath = relativePath
       ? path.join(relativePath, entry.name)
@@ -60,7 +62,7 @@ function getTree(repoPath, relativePath = '') {
 
       // Show directory if it has .md files (nested) OR is empty (only .gitkeep)
       const dirPath = path.join(fullPath, entry.name);
-      const dirEntries = fs.readdirSync(dirPath).filter(f => f !== '.git');
+      const dirEntries = fs.readdirSync(dirPath).filter(f => !isIgnoredDir(f));
       const isGitkeepOnly = dirEntries.length === 0 || (dirEntries.length === 1 && dirEntries[0] === '.gitkeep');
       if (children.length === 0 && !isGitkeepOnly) continue;
 
@@ -123,13 +125,12 @@ function getTree(repoPath, relativePath = '') {
 
 /**
  * True if any segment of a relative path is a dotfile/dot-directory
- * (.git, .pdf-cache, .env, .gitignore, ...). These must never be
- * readable through public routes — .git/config in particular.
+ * (.git, .pdf-cache, .env, .gitignore, ...) or an ignored folder like
+ * meta-conversion. Public routes must never serve these — .git/config
+ * above all. (Now a thin alias of isIgnoredPath, kept for its callers.)
  */
 function hasHiddenSegment(relPath) {
-  return String(relPath)
-    .split(/[\\/]+/)
-    .some((seg) => seg.startsWith('.'));
+  return isIgnoredPath(relPath);
 }
 
 /**

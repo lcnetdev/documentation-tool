@@ -32,6 +32,29 @@ describe('fileTree', () => {
       expect(tree[1].type).toBe('file');
     });
 
+    it('excludes ignored directories such as meta-conversion', () => {
+      fs.mkdirSync(path.join(tmpDir, 'meta-conversion'));
+      fs.writeFileSync(path.join(tmpDir, 'meta-conversion', 'README.md'), '# Conversion notes');
+      fs.writeFileSync(path.join(tmpDir, 'meta-conversion', 'convert.py'), 'print(1)');
+      fs.mkdirSync(path.join(tmpDir, 'guide'));
+      fs.mkdirSync(path.join(tmpDir, 'guide', 'meta-conversion'));
+      fs.writeFileSync(path.join(tmpDir, 'guide', 'meta-conversion', 'notes.md'), '# Nested');
+      fs.writeFileSync(path.join(tmpDir, 'guide', 'intro.md'), '# Intro');
+      fs.writeFileSync(path.join(tmpDir, 'doc.md'), '# Doc');
+
+      const tree = getTree(tmpDir);
+
+      expect(tree.map(t => t.name)).toEqual(['guide', 'doc.md']);
+      expect(tree[0].children.map(c => c.name)).toEqual(['intro.md']);
+    });
+
+    it('refuses to read files inside ignored directories', () => {
+      fs.mkdirSync(path.join(tmpDir, 'meta-conversion'));
+      fs.writeFileSync(path.join(tmpDir, 'meta-conversion', 'README.md'), '# Conversion notes');
+
+      expect(() => readFile(tmpDir, 'meta-conversion/README.md')).toThrow('Access denied');
+    });
+
     it('excludes .git directory', () => {
       fs.mkdirSync(path.join(tmpDir, '.git'));
       fs.writeFileSync(path.join(tmpDir, '.git', 'HEAD'), 'ref: refs/heads/main');

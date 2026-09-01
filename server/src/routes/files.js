@@ -8,6 +8,7 @@ const { processIncludes, prependGlobalStyle } = require('../services/includeProc
 const { getStatus, buildSinglePagePdf } = require('../services/pdfGenerator');
 const { heavyLimiter } = require('../middleware/rateLimits');
 const MarkdownIt = require('markdown-it');
+const { highlightCode, TOKEN_CSS } = require('../services/highlight');
 const RepoMeta = require('../services/repoMeta');
 
 const router = express.Router();
@@ -256,7 +257,15 @@ router.get('/:repoName/html/page/*', heavyLimiter, (req, res) => {
     const rawContent = readFile(repoPath, filePath);
     const content = prependGlobalStyle(processIncludes(rawContent, repoPath, filePath), repoPath);
 
-    const md = new MarkdownIt({ html: true, linkify: true, breaks: true });
+    const md = new MarkdownIt({
+      html: true,
+      linkify: true,
+      breaks: true,
+      highlight(str, lang) {
+        const result = highlightCode(str, lang);
+        return result ? result.html : '';
+      }
+    });
     // Raw HTML in markdown is allowed for layout, but scripts/event handlers
     // must not survive into the downloadable standalone page (stored XSS).
     let html = DOMPurify.sanitize(md.render(content), { ADD_TAGS: ['style'] });
@@ -318,8 +327,9 @@ router.get('/:repoName/html/page/*', heavyLimiter, (req, res) => {
   h2 { font-size: 1.5em; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.25em; }
   h3 { font-size: 1.25em; }
   code { font-family: 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.875em; background: #f1f5f9; padding: 2px 6px; border-radius: 3px; color: #e53e3e; }
-  pre { background: #1e293b; color: #e2e8f0; padding: 16px; border-radius: 6px; overflow-x: auto; }
+  pre { background: #f6f8fa; color: #24292f; border: 1px solid #e2e8f0; padding: 16px; border-radius: 6px; overflow-x: auto; }
   pre code { background: none; padding: 0; color: inherit; }
+${TOKEN_CSS}
   blockquote { margin: 1em 0; padding: 0.5em 1em; border-left: 4px solid #4a90d9; background: #ebf8ff; color: #2c5282; }
   table { width: 100%; border-collapse: collapse; margin: 1em 0; }
   th { background: #f7fafc; border: 1px solid #e2e8f0; padding: 8px 12px; text-align: left; font-weight: 600; }
@@ -328,7 +338,7 @@ router.get('/:repoName/html/page/*', heavyLimiter, (req, res) => {
   img { max-width: 100%; height: auto; border-radius: 6px; }
   figure { margin: 1em 0; text-align: center; }
   figcaption { font-size: 0.9em; color: #718096; margin-top: 0.5em; }
-  a { color: #4a90d9; text-decoration: none; }
+  a { color: #2b6cb0; text-decoration: none; }
   a:hover { text-decoration: underline; }
   hr { border: none; border-top: 1px solid #e2e8f0; margin: 2em 0; }
   ul, ol { padding-left: 2em; }

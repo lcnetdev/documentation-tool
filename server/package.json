@@ -17,6 +17,7 @@
     "markdown-it": "^14.1.1",
     "multer": "^2.2.0",
     "pdfkit": "^0.17.2",
+    "prismjs": "^1.30.0",
     "simple-git": "^3.36.0"
   },
   "devDependencies": {

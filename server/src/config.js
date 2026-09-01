@@ -16,6 +16,11 @@ const config = {
   nodeEnv: process.env.NODE_ENV || 'development',
   basePath: normalizedBase,
   gitPushEnabled: process.env.GIT_PUSH_ENABLED !== 'false',
+  // Folders inside a docs repo that carry non-documentation material
+  // (conversion scripts, source documents). Kept out of the tree, search
+  // and file routes.
+  ignoredDirs: (process.env.IGNORED_DIRS === undefined ? 'meta-conversion' : process.env.IGNORED_DIRS)
+    .split(',').map((s) => s.trim()).filter(Boolean),
 };
 
 module.exports = config;

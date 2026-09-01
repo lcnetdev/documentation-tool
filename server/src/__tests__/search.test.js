@@ -27,6 +27,12 @@ describe('SearchService', () => {
     );
 
     fs.writeFileSync(path.join(tmpDir, 'notes.txt'), 'This should not be indexed.');
+
+    fs.mkdirSync(path.join(tmpDir, 'meta-conversion'));
+    fs.writeFileSync(
+      path.join(tmpDir, 'meta-conversion', 'README.md'),
+      '# Conversion\n\nZebra conversion script notes; never indexed.\n'
+    );
   });
 
   afterEach(() => {
@@ -77,5 +83,11 @@ describe('SearchService', () => {
       expect(result.results).toEqual([]);
       expect(result.totalMatches).toBe(0);
     });
+  });
+
+  it('does not index ignored directories such as meta-conversion', () => {
+    searchService.buildIndex('test-repo', tmpDir);
+    const response = searchService.search('test-repo', 'Zebra');
+    expect(response.results).toEqual([]);
   });
 });

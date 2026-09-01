@@ -1,4 +1,5 @@
 const fs = require('fs');
+const { isIgnoredDir } = require('./ignored');
 const path = require('path');
 
 class SearchService {
@@ -20,7 +21,7 @@ class SearchService {
     }
 
     for (const entry of entries) {
-      if (entry.name === '.git') continue;
+      if (isIgnoredDir(entry.name)) continue;
 
       const fullPath = path.join(dirPath, entry.name);
       const relPath = relativePath
