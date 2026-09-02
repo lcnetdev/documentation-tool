@@ -49,6 +49,49 @@ This is the most critical frontend logic. The markdown-it instance has custom re
 2. Convert to Vue router path: `/view/documentation-marva-manual/index.md`
 3. In editor mode, links go to `/edit/...` instead
 
+### Navigation Order (`NAV_ORDER`)
+
+The tree (`server/src/services/fileTree.js`) sorts each directory as folders first, then files, alphabetically. A directory's own `index.md` can override that for its children with a hidden comment block listing file and folder **names** (not titles); unlisted entries follow in alphabetical order:
+
+```html
+<!--
+NAV_ORDER
+index.md
+about.md
+Configuration
+-->
+```
+
+The repo root's `index.md` orders the top level; a subdirectory's `index.md` orders that subdirectory. In the editor, **Reorder** lets you pick a folder and drag its entries; saving posts `{ order, dir }` to `POST /repos/:repo/nav-order`, which rewrites the block in that folder's `index.md` and commits it. A folder without an `index.md` cannot be given a custom order.
+
+Viewer and editor URLs that end in `/` (a directory, or just the repo) redirect to that directory's `index.md` (`client/src/utils/indexRedirect.js`, applied as a router guard in `client/src/router/index.js`).
+
+### Syntax Highlighting and RDF Code Blocks
+
+Fenced code blocks are highlighted with [Prism](https://prismjs.com/) (`client/src/utils/highlight.js`). The markdown-it instance passes every fence through `highlightCode(code, lang)`; fence names are mapped to grammars via an alias table (`xml`/`rdfxml` -> markup, `ttl` -> turtle, `jsonld` -> json, ...). Unknown languages fall back to escaped plain text. Token colours live in `client/src/assets/main.css` ("Syntax Highlighting"); the HTML download uses the same grammars server-side (`server/src/services/highlight.js`).
+
+**RDF/XML blocks** get a richer treatment. `looksLikeRdfXml(lang, code)` (`client/src/utils/rdf/detect.js`) flags a fence when:
+- its language is `rdf`, `rdfxml`, `rdf-xml` or `rdf/xml`, or
+- its language is `xml` (or empty) and the content contains `<rdf:RDF`, `<rdf:Description`, or an `rdf:about` / `rdf:resource` / `rdf:nodeID` / `rdf:ID` / `rdf:parseType` / `rdf:datatype` attribute.
+
+For those, the fence renderer emits `<div class="rdf-block"><pre><code>...</code></pre></div>`. After each render `MarkdownRenderer` mounts an `RdfCodeBlock` Vue app into every wrapper (and unmounts the previous ones, since `v-html` replaces the DOM). The component shows tabs:
+
+| Tab | Source |
+| --- | --- |
+| RDF/XML | the Prism-highlighted fence content |
+| JSON-LD | `toJsonLd()` - `@context` of the prefixes actually used, embedded blank nodes, `@list`, native numbers/booleans |
+| Turtle | `toTurtle()` - nested `[ ... ]` for single-use blank nodes, `( ... )` for collections, `a` for `rdf:type`, numeric/boolean shorthand |
+| Graph | `RdfGraph.vue` - dagre layout; resources are ellipses, classes are tinted ellipses, blank nodes dashed, literals are boxes (with `@lang` / `^^datatype`), predicates are labeled arrows. Shown at natural size (readable labels; drag to pan), with Fit / 100% buttons, ctrl/cmd+wheel zoom, and a top-to-bottom (default) / left-to-right switch. |
+
+Conversion happens lazily on the first tab switch; the RDF utilities (`client/src/utils/rdf/`) and dagre are loaded as a separate chunk.
+
+The parser (`client/src/utils/rdf/rdfxml.js`) is a DOMParser-based implementation of the RDF/XML grammar (typed nodes, property attributes, `rdf:resource`, `rdf:nodeID`, `rdf:datatype`, `xml:lang`, `xml:base`, `rdf:parseType="Resource|Collection|Literal"`, `rdf:li`, reification). Because documentation examples are usually fragments, `prepareRdfXml()` first:
+1. strips an XML declaration,
+2. wraps the snippet in `<rdf:RDF>` when it has no such root, and
+3. declares any prefix that is used but not declared, using the well-known table in `client/src/utils/rdf/terms.js` (`bf`, `bflc`, `madsrdf`, `rdfs`, `xsd`, `foaf`, `dcterms`, `schema`, ...). Unknown prefixes get a placeholder namespace and a warning is shown above the converted output.
+
+Malformed XML is reported in the tab panel with the line and column from the browser's parser.
+
 ### Git Operations (`server/src/services/git.js`)
 
 Uses `simple-git` for all git operations. Key behaviors:

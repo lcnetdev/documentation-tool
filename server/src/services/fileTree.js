@@ -104,20 +104,19 @@ function getTree(repoPath, relativePath = '') {
     return a.name.localeCompare(b.name);
   });
 
-  // At root level, apply NAV_ORDER from index.md if present
-  if (!relativePath) {
-    const navOrder = parseNavOrder(repoPath);
-    if (navOrder.length > 0) {
-      result.sort((a, b) => {
-        const aIdx = navOrder.indexOf(a.name);
-        const bIdx = navOrder.indexOf(b.name);
-        // Items not in list go to the end, keeping their relative alpha order
-        if (aIdx === -1 && bIdx === -1) return 0;
-        if (aIdx === -1) return 1;
-        if (bIdx === -1) return -1;
-        return aIdx - bIdx;
-      });
-    }
+  // If this folder's index.md carries a NAV_ORDER block, sort its entries by it.
+  // The root index sorts the repo's top level; each subfolder's index sorts that subfolder.
+  const navOrder = parseNavOrder(fullPath);
+  if (navOrder.length > 0) {
+    result.sort((a, b) => {
+      const aIdx = navOrder.indexOf(a.name);
+      const bIdx = navOrder.indexOf(b.name);
+      // Anything missing from the list sinks to the bottom, still in alphabetical order
+      if (aIdx === -1 && bIdx === -1) return 0;
+      if (aIdx === -1) return 1;
+      if (bIdx === -1) return -1;
+      return aIdx - bIdx;
+    });
   }
 
   return result;
@@ -213,7 +212,8 @@ function parseNav(repoPath) {
  * Parse the NAV_ORDER comment block from the root index.md.
  * Returns an array of filenames/dirnames in display order, or empty array if none.
  */
-function parseNavOrder(repoPath) {
+function parseNavOrder(dirPath) {
+  const repoPath = dirPath;
   const indexPath = path.join(repoPath, 'index.md');
   if (!fs.existsSync(indexPath)) return [];
 
@@ -232,10 +232,11 @@ function parseNavOrder(repoPath) {
  * @param {string} repoPath
  * @param {string[]} order - array of filenames/dirnames
  */
-function updateNavOrder(repoPath, order) {
+function updateNavOrder(dirPath, order) {
+  const repoPath = dirPath;
   const indexPath = path.join(repoPath, 'index.md');
   if (!fs.existsSync(indexPath)) {
-    throw new Error('index.md not found');
+    throw new Error('This directory has no index.md; create one to set a custom order');
   }
 
   let content = fs.readFileSync(indexPath, 'utf-8');

@@ -60,6 +60,13 @@
         <button v-if="!reorderMode" class="filetree-toolbar-btn" @click="onMove" title="Move file or directory">Move</button>
       </div>
       <div v-if="reorderMode" class="reorder-list">
+        <label class="reorder-dir">
+          <span class="reorder-dir-label">Folder</span>
+          <select v-model="reorderDir" class="reorder-dir-select" @change="loadReorderItems">
+            <option v-for="d in reorderDirs" :key="d.path" :value="d.path">{{ d.label }}</option>
+          </select>
+        </label>
+        <p v-if="!reorderItems.length" class="reorder-hint">This folder has nothing to reorder.</p>
         <div v-if="reorderSaving" class="reorder-saving">
           <span class="saving-spinner"></span> Saving order...
         </div>
@@ -201,6 +208,10 @@ export default {
       currentTheme: getTheme(),
       reorderMode: false,
       reorderItems: [],
+      // The folder we're currently reordering ('' means the repo root);
+      // its index.md is where the NAV_ORDER block gets written.
+      reorderDir: '',
+      reorderDirs: [],
       reorderSaving: false,
       reorderDragIndex: null
     }
@@ -486,7 +497,7 @@ export default {
                 'Content-Type': 'application/json',
                 'Authorization': getAuthHeader()
               },
-              body: JSON.stringify({ order })
+              body: JSON.stringify({ order, dir: this.reorderDir })
             }
           )
           if (!response.ok) {
@@ -509,17 +520,49 @@ export default {
           this.reorderSaving = false
         }
       } else {
-        // Enter reorder mode — get root items from tree
+        // Turning reorder mode on — the root folder is shown first, but any
+        // folder can be chosen from the dropdown
         if (!this.$refs.fileTree || !this.$refs.fileTree.tree.length) {
           return
         }
-        this.reorderItems = this.$refs.fileTree.tree.map(item => ({
-          name: item.name,
-          title: item.title || item.name,
-          type: item.type
-        }))
+        this.reorderDirs = this.collectReorderDirs(this.$refs.fileTree.tree)
+        this.reorderDir = ''
+        this.loadReorderItems()
         this.reorderMode = true
       }
+    },
+    /** Walk the tree and turn every folder into a dropdown option, with deeper folders indented. */
+    collectReorderDirs(tree) {
+      const dirs = [{ path: '', label: 'Repository root' }]
+      const walk = (items, depth) => {
+        for (const item of items) {
+          if (item.type !== 'directory') continue
+          dirs.push({ path: item.path, label: '\u00a0\u00a0'.repeat(depth) + (item.title || item.name) })
+          if (item.children) walk(item.children, depth + 1)
+        }
+      }
+      walk(tree, 1)
+      return dirs
+    },
+    findTreeItem(items, targetPath) {
+      for (const item of items) {
+        if (item.path === targetPath) return item
+        if (item.children) {
+          const found = this.findTreeItem(item.children, targetPath)
+          if (found) return found
+        }
+      }
+      return null
+    },
+    loadReorderItems() {
+      const tree = this.$refs.fileTree ? this.$refs.fileTree.tree : []
+      const node = this.reorderDir ? this.findTreeItem(tree, this.reorderDir) : null
+      const items = this.reorderDir ? ((node && node.children) || []) : tree
+      this.reorderItems = items.map(item => ({
+        name: item.name,
+        title: item.title || item.name,
+        type: item.type
+      }))
     },
     onReorderDragStart(index, e) {
       this.reorderDragIndex = index
@@ -674,6 +717,9 @@ export default {
 .filetree-toolbar-new { color: var(--color-primary); font-weight: 600; }
 .filetree-toolbar-active { background: var(--color-primary) !important; color: #fff !important; font-weight: 600; }
 .reorder-list { flex: 1; overflow-y: auto; padding: 4px 0; }
+.reorder-dir { display: flex; align-items: center; gap: 6px; padding: 4px 12px 6px; font-size: 12px; color: var(--text-muted); }
+.reorder-dir-select { flex: 1; min-width: 0; font: inherit; font-size: 12px; padding: 3px 6px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-surface); color: var(--text-primary); }
+.reorder-hint { margin: 0; padding: 8px 12px; font-size: 12px; color: var(--text-muted); }
 .reorder-saving { padding: 16px; font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 8px; }
 .reorder-items { list-style: none; margin: 0; padding: 0; }
 .reorder-item { display: flex; align-items: center; padding: 6px 12px; cursor: grab; font-size: 12px; color: var(--text-tertiary); border-bottom: 1px solid transparent; transition: background-color 0.1s; user-select: none; }

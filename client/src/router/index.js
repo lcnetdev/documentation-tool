@@ -3,6 +3,7 @@ import HomeView from '@/views/HomeView.vue'
 import ViewerLayout from '@/views/ViewerLayout.vue'
 import EditorLayout from '@/views/EditorLayout.vue'
 import { basePath } from '@/utils/basePath'
+import { resolveIndexRedirect } from '@/utils/indexRedirect'
 
 const routes = [
   {
@@ -11,9 +12,17 @@ const routes = [
     component: HomeView
   },
   {
+    path: '/view/:repoName',
+    redirect: (to) => '/view/' + to.params.repoName + '/index.md'
+  },
+  {
     path: '/view/:repoName/:pathMatch(.*)',
     name: 'viewer',
     component: ViewerLayout
+  },
+  {
+    path: '/edit/:repoName',
+    redirect: (to) => '/edit/' + to.params.repoName + '/index.md'
   },
   {
     path: '/edit/:repoName/:pathMatch(.*)',
@@ -44,5 +53,8 @@ const router = createRouter({
     return { top: 0 }
   }
 })
+
+// When a URL points at a folder rather than a file, open the index.md inside it
+router.beforeEach((to) => resolveIndexRedirect(to) || true)
 
 export default router

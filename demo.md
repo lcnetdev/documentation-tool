@@ -210,6 +210,30 @@ class DocumentParser:
 }
 ```
 
+### RDF/XML (Turtle, JSON-LD and graph tabs)
+
+Code blocks that contain RDF/XML get extra tabs that convert the snippet to Turtle and JSON-LD and draw it as a graph. Namespace declarations and the `rdf:RDF` root may be omitted; common prefixes such as `bf`, `bflc`, `madsrdf`, `rdfs` and `xsd` are filled in automatically.
+
+```xml
+<bf:Hub rdf:about="http://id.loc.gov/resources/hubs/4978c720-ca4f-ca86-2d7e-a15f8245ade9">
+  <bflc:aap>Homer. Odyssey. English</bflc:aap>
+  <bf:title>
+    <bf:Title>
+      <bf:mainTitle xml:lang="en">Odyssey. English</bf:mainTitle>
+    </bf:Title>
+  </bf:title>
+  <bf:contribution>
+    <bf:Contribution>
+      <rdf:type rdf:resource="http://id.loc.gov/ontologies/bibframe/PrimaryContribution"/>
+      <bf:agent rdf:resource="http://id.loc.gov/rwo/agents/n78095639"/>
+      <bf:role rdf:resource="http://id.loc.gov/vocabulary/relators/ctb"/>
+    </bf:Contribution>
+  </bf:contribution>
+  <bf:language rdf:resource="http://id.loc.gov/vocabulary/languages/eng"/>
+  <bflc:adminMetadata rdf:datatype="http://www.w3.org/2001/XMLSchema#date">2024-05-01</bflc:adminMetadata>
+</bf:Hub>
+```
+
 ### JSON
 
 ```json
@@ -474,4 +498,4 @@ Use backslashes to display literal markdown characters:
 
 ---
 
-*This demo was generated to showcase all markdown rendering capabilities of the documentation tool.*
+*This demo was generated to showcase all markdown rendering capabilities of the documentation tool.*          

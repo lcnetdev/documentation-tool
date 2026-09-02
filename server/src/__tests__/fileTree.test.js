@@ -32,6 +32,22 @@ describe('fileTree', () => {
       expect(tree[1].type).toBe('file');
     });
 
+    it('applies a NAV_ORDER block from a subdirectory index.md to its children', () => {
+      fs.mkdirSync(path.join(tmpDir, 'guide'));
+      fs.writeFileSync(path.join(tmpDir, 'guide', 'index.md'), '# Guide\n\n<!--\nNAV_ORDER\nzeta.md\nindex.md\nalpha.md\n-->\n');
+      fs.writeFileSync(path.join(tmpDir, 'guide', 'alpha.md'), '# Alpha');
+      fs.writeFileSync(path.join(tmpDir, 'guide', 'zeta.md'), '# Zeta');
+      fs.writeFileSync(path.join(tmpDir, 'guide', 'middle.md'), '# Middle');
+      fs.writeFileSync(path.join(tmpDir, 'index.md'), '# Root');
+
+      const tree = getTree(tmpDir);
+      const guide = tree.find(t => t.name === 'guide');
+
+      expect(guide.children.map(c => c.name)).toEqual(['zeta.md', 'index.md', 'alpha.md', 'middle.md']);
+      // no NAV_ORDER block in the root index, so the usual sorting applies
+      expect(tree.map(t => t.name)).toEqual(['guide', 'index.md']);
+    });
+
     it('excludes ignored directories such as meta-conversion', () => {
       fs.mkdirSync(path.join(tmpDir, 'meta-conversion'));
       fs.writeFileSync(path.join(tmpDir, 'meta-conversion', 'README.md'), '# Conversion notes');

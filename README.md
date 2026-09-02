@@ -77,6 +77,7 @@ cd client && npm run dev
 | `GIT_TOKEN` | GitHub personal access token | |
 | `NODE_ENV` | `development` or `production` | `development` |
 | `PORT` | Server port | `3000` |
+| `IGNORED_DIRS` | Comma-separated directory names inside a docs repo to hide from the file tree, search and file routes (non-documentation material such as conversion scripts) | `meta-conversion` |
 
 ## Features
 
@@ -85,6 +86,8 @@ cd client && npm run dev
 - Cross-file search (Ctrl-F / Cmd-F) that searches all markdown files
 - Images rendered with macOS-style subtle drop shadows
 - Relative links between documents work seamlessly
+- Syntax-highlighted code blocks (Prism: XML/RDF-XML, Turtle, SPARQL, JSON, JavaScript, Python, and more)
+- RDF/XML code blocks get tabs that convert the snippet to Turtle and JSON-LD and draw it as a labeled graph (see [Development Guide](DEVELOPMENT.md#syntax-highlighting-and-rdf-code-blocks))
 
 ### Editor (`/edit/:repoName/:filePath`)
 - Protected by HTTP basic auth (any username, shared password)

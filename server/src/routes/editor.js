@@ -10,6 +10,7 @@ const RepoMeta = require('../services/repoMeta');
 const { saveUploadedImage, savePastedImage } = require('../services/imageHandler');
 const { invalidateCache } = require('../services/pdfGenerator');
 const { updateNavOrder } = require('../services/fileTree');
+const { isIgnoredPath } = require('../services/ignored');
 
 const router = express.Router();
 const writeQueue = new WriteQueue();
@@ -574,14 +575,15 @@ router.post('/:repoName/move', (req, res) => {
 
 /**
  * POST /repos/:repoName/nav-order
- * Update the NAV_ORDER comment in root index.md, commit and push.
- * Body: { order: string[] }
+ * Rewrite the NAV_ORDER comment inside a directory's index.md, then commit and push.
+ * Body: { order: string[], dir?: string }  (dir is the folder path relative to the repo; '' or omitted means the root)
  */
 router.post('/:repoName/nav-order', (req, res) => {
   const repoName = req.params.repoName;
   const { order } = req.body;
+  const dir = typeof req.body.dir === 'string' ? req.body.dir.replace(/^\/+|\/+$/g, '') : '';
 
-  if (!Array.isArray(order)) {
+  if (!Array.isArray(order) || !order.every((o) => typeof o === 'string')) {
     return res.status(400).json({ error: 'order must be an array of strings' });
   }
 
@@ -590,14 +592,24 @@ router.post('/:repoName/nav-order', (req, res) => {
     return res.status(404).json({ error: 'Repository not found' });
   }
 
+  const dirPath = path.resolve(repoPath, dir);
+  if (dir && (dir.split(/[\\/]+/).includes('..') || isIgnoredPath(dir) ||
+      !dirPath.startsWith(path.resolve(repoPath) + path.sep))) {
+    return res.status(400).json({ error: 'Invalid directory' });
+  }
+  if (!fs.existsSync(dirPath) || !fs.statSync(dirPath).isDirectory()) {
+    return res.status(404).json({ error: 'Directory not found' });
+  }
+  const indexFile = dir ? dir + '/index.md' : 'index.md';
+
   writeQueue
     .enqueue(repoName, async () => {
-      updateNavOrder(repoPath, order);
+      updateNavOrder(dirPath, order);
 
       const gitService = new GitService(repoPath);
       const hash = await gitService.commitAndPush(
-        'index.md',
-        'Update navigation order in index.md',
+        indexFile,
+        'Update navigation order in ' + indexFile,
         req.user.username
       );
       return hash;
