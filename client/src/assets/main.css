@@ -492,6 +492,45 @@ h1, h2, h3, h4, h5, h6 {
   margin-bottom: 0;
 }
 
+/* LIST_STYLE hint styles (see client/src/utils/listStyleHints.js) */
+.markdown-body ul.list-compact,
+.markdown-body ol.list-compact {
+  margin: 0.5em 0;
+}
+
+/* a compact bullet list should read as a bare run of terms/links, so no markers and no indent */
+.markdown-body ul.list-compact {
+  list-style: none;
+  padding-left: 0;
+}
+
+.markdown-body .list-compact li {
+  margin: 0.1em 0;
+  line-height: 1.4;
+}
+
+.markdown-body .list-two-column {
+  column-count: 2;
+  column-gap: 2.5em;
+}
+
+.markdown-body .list-three-column {
+  column-count: 3;
+  column-gap: 2.5em;
+}
+
+.markdown-body .list-two-column li,
+.markdown-body .list-three-column li {
+  break-inside: avoid;
+}
+
+@media (max-width: 700px) {
+  .markdown-body .list-two-column,
+  .markdown-body .list-three-column {
+    column-count: 1;
+  }
+}
+
 .markdown-body table {
   width: 100%;
   border-collapse: collapse;

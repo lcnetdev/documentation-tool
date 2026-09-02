@@ -138,6 +138,21 @@ Images with generic alt text render without a caption:
 
 ---
 
+## List Layout Hints
+
+Stick an HTML comment just above a list and you can tighten it or pour it into columns. The recognized words are `compact` (tight, and bullet lists drop their markers), `two-column` and `three-column`.
+
+<!-- LIST_STYLE: compact two-column -->
+
+- [bf:classification](https://id.loc.gov/ontologies/bibframe.html#p_classification)
+- [bf:content](https://id.loc.gov/ontologies/bibframe.html#p_content)
+- [bf:contribution](https://id.loc.gov/ontologies/bibframe.html#p_contribution)
+- [bf:genreForm](https://id.loc.gov/ontologies/bibframe.html#p_genreForm)
+- [bf:language](https://id.loc.gov/ontologies/bibframe.html#p_language)
+- [bf:subject](https://id.loc.gov/ontologies/bibframe.html#p_subject)
+
+---
+
 ## Code Blocks
 
 ### Generic Code Block

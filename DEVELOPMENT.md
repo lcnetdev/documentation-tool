@@ -66,6 +66,19 @@ The repo root's `index.md` orders the top level; a subdirectory's `index.md` ord
 
 Viewer and editor URLs that end in `/` (a directory, or just the repo) redirect to that directory's `index.md` (`client/src/utils/indexRedirect.js`, applied as a router guard in `client/src/router/index.js`).
 
+### Rendering Hints (`LIST_STYLE`)
+
+To nudge how a list is laid out, put an HTML comment on the line just above it (`client/src/utils/listStyleHints.js`; the HTML export has its own copy in `server/src/services/listStyleHints.js`):
+
+```markdown
+<!-- LIST_STYLE: compact two-column -->
+
+- [bf:classification](https://id.loc.gov/ontologies/bibframe.html#p_classification)
+- [bf:content](https://id.loc.gov/ontologies/bibframe.html#p_content)
+```
+
+The comment itself never reaches the output; every word the plugin recognizes turns into a class on the list: `compact` (tighter spacing, and bullet lists lose their markers and indent — numbered lists keep their numbers), `two-column` and `three-column` (CSS multi-column, dropping back to a single column below 700px). Unrecognized words are skipped, and a hint that doesn't sit directly above a list has no effect. The styles are in `client/src/assets/main.css` under "LIST_STYLE hint styles". To introduce a new hint word, extend `LIST_STYLE_CLASSES` in both plugin files and write the CSS in both places.
+
 ### Syntax Highlighting and RDF Code Blocks
 
 Fenced code blocks are highlighted with [Prism](https://prismjs.com/) (`client/src/utils/highlight.js`). The markdown-it instance passes every fence through `highlightCode(code, lang)`; fence names are mapped to grammars via an alias table (`xml`/`rdfxml` -> markup, `ttl` -> turtle, `jsonld` -> json, ...). Unknown languages fall back to escaped plain text. Token colours live in `client/src/assets/main.css` ("Syntax Highlighting"); the HTML download uses the same grammars server-side (`server/src/services/highlight.js`).

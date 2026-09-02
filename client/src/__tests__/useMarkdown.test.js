@@ -126,3 +126,36 @@ describe('fenced code blocks', () => {
     expect(html).not.toContain('token')
   })
 })
+
+describe('LIST_STYLE rendering hints', () => {
+  function render(markdown) {
+    const md = createMarkdownRenderer('my-repo', 'index.md', 'view')
+    return md.render(markdown)
+  }
+
+  it('tags the following list with layout classes and drops the comment', () => {
+    const html = render('<!-- LIST_STYLE: compact two-column -->\n\n- [bf:classification](https://x/#p_classification)\n- [bf:content](https://x/#p_content)\n')
+    expect(html).toContain('<ul class="list-compact list-two-column">')
+    expect(html).not.toContain('LIST_STYLE')
+    expect(html).toContain('bf:classification')
+  })
+
+  it('works without a blank line, with commas, and on ordered lists', () => {
+    const html = render('<!-- LIST_STYLE: compact, three-column -->\n1. a\n2. b\n')
+    expect(html).toContain('<ol class="list-compact list-three-column">')
+  })
+
+  it('ignores unknown words and hints not followed by a list', () => {
+    expect(render('<!-- LIST_STYLE: sparkly -->\n\n- a\n')).toContain('<ul>')
+    const html = render('<!-- LIST_STYLE: compact -->\n\nA paragraph.\n\n- a\n')
+    expect(html).toContain('<ul>')
+    expect(html).not.toContain('list-compact')
+    expect(html).not.toContain('LIST_STYLE')
+  })
+
+  it('leaves other comments and lists alone', () => {
+    const html = render('<!-- just a note -->\n\n- a\n')
+    expect(html).toContain('<!-- just a note -->')
+    expect(html).toContain('<ul>')
+  })
+})

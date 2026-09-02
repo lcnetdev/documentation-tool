@@ -4,6 +4,7 @@ import { resolveRelativePath } from '@/utils/relativePath'
 import { withBase } from '@/utils/basePath'
 import { highlightCode } from '@/utils/highlight'
 import { looksLikeRdfXml } from '@/utils/rdf/detect'
+import listStyleHints from '@/utils/listStyleHints'
 
 /**
  * Creates a configured markdown-it instance with custom image and link rendering.
@@ -36,6 +37,9 @@ export function createMarkdownRenderer(repoName, currentFilePath, mode) {
   })
 
   // Our own fence handling, for mermaid and RDF/XML blocks
+  // a <!-- LIST_STYLE: ... --> comment right above a list adds layout classes to it
+  md.use(listStyleHints)
+
   const defaultFence = md.renderer.rules.fence
   md.renderer.rules.fence = function (tokens, idx, options, env, self) {
     const token = tokens[idx]

@@ -9,6 +9,7 @@ const { getStatus, buildSinglePagePdf } = require('../services/pdfGenerator');
 const { heavyLimiter } = require('../middleware/rateLimits');
 const MarkdownIt = require('markdown-it');
 const { highlightCode, TOKEN_CSS } = require('../services/highlight');
+const { listStyleHints, LIST_STYLE_CSS } = require('../services/listStyleHints');
 const RepoMeta = require('../services/repoMeta');
 
 const router = express.Router();
@@ -266,6 +267,7 @@ router.get('/:repoName/html/page/*', heavyLimiter, (req, res) => {
         return result ? result.html : '';
       }
     });
+    md.use(listStyleHints);
     // Raw HTML in markdown is allowed for layout, but scripts/event handlers
     // must not survive into the downloadable standalone page (stored XSS).
     let html = DOMPurify.sanitize(md.render(content), { ADD_TAGS: ['style'] });
@@ -330,6 +332,7 @@ router.get('/:repoName/html/page/*', heavyLimiter, (req, res) => {
   pre { background: #f6f8fa; color: #24292f; border: 1px solid #e2e8f0; padding: 16px; border-radius: 6px; overflow-x: auto; }
   pre code { background: none; padding: 0; color: inherit; }
 ${TOKEN_CSS}
+${LIST_STYLE_CSS}
   blockquote { margin: 1em 0; padding: 0.5em 1em; border-left: 4px solid #4a90d9; background: #ebf8ff; color: #2c5282; }
   table { width: 100%; border-collapse: collapse; margin: 1em 0; }
   th { background: #f7fafc; border: 1px solid #e2e8f0; padding: 8px 12px; text-align: left; font-weight: 600; }
