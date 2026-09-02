@@ -42,7 +42,7 @@ function listStyleHints(md) {
 const LIST_STYLE_CSS = `
   ul.list-compact, ol.list-compact { margin: 0.5em 0; }
   ul.list-compact { list-style: none; padding-left: 0; }
-  .list-compact li { margin: 0.1em 0; line-height: 1.4; }
+  .list-compact li { line-height: 1.4; }
   .list-two-column { column-count: 2; column-gap: 2.5em; }
   .list-three-column { column-count: 3; column-gap: 2.5em; }
   .list-two-column li, .list-three-column li { break-inside: avoid; }

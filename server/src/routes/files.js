@@ -345,7 +345,7 @@ ${LIST_STYLE_CSS}
   a:hover { text-decoration: underline; }
   hr { border: none; border-top: 1px solid #e2e8f0; margin: 2em 0; }
   ul, ol { padding-left: 2em; }
-  li { margin: 0.25em 0; }
+  li { margin: 0; }
 </style>
 </head>
 <body>
