@@ -6,7 +6,7 @@ const config = require('../config');
 const { getTree, readFile, parseNav, hasHiddenSegment } = require('../services/fileTree');
 const { processIncludes, prependGlobalStyle } = require('../services/includeProcessor');
 const { getStatus, buildSinglePagePdf } = require('../services/pdfGenerator');
-const { heavyLimiter } = require('../middleware/rateLimits');
+const { heavyLimiter, pdfStatusLimiter } = require('../middleware/rateLimits');
 const MarkdownIt = require('markdown-it');
 const { highlightCode, TOKEN_CSS } = require('../services/highlight');
 const { listStyleHints, LIST_STYLE_CSS } = require('../services/listStyleHints');
@@ -171,7 +171,7 @@ router.get('/:repoName/images/*', (req, res) => {
  * GET /repos/:repoName/pdf/status
  * Returns the current PDF build status: idle, building, ready, or error.
  */
-router.get('/:repoName/pdf/status', (req, res) => {
+router.get('/:repoName/pdf/status', pdfStatusLimiter, (req, res) => {
   const status = getStatus(req.params.repoName);
   res.json(status);
 });

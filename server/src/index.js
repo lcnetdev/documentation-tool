@@ -100,9 +100,6 @@ async function start() {
     if (fs.existsSync(repoPath)) {
       searchService.buildIndex('documentation-marva-manual', repoPath);
       console.log('Search index built for documentation-marva-manual');
-
-      // Kick off background PDF generation if not already cached
-      ensurePdf(repoPath, 'documentation-marva-manual');
     }
   } catch (err) {
     console.error('Failed to clone default repo:', err.message);
@@ -113,6 +110,13 @@ async function start() {
   const repoMeta = new RepoMeta();
   repoMeta.seedExisting();
   console.log('Repo metadata seeded.');
+
+  // Pick up the cached manual PDF, or start building one, for every repo.
+  // Previously only the default repo got this, so every other repo reported
+  // "idle" forever and the viewer never stopped polling for it.
+  for (const repo of repoMeta.listAll()) {
+    ensurePdf(path.join(config.docsDir, repo.name), repo.name);
+  }
 
   // Scrub credentials that older versions embedded in each repo's
   // .git/config (GitService now authenticates per-invocation instead)

@@ -1,6 +1,15 @@
 const rateLimit = require('express-rate-limit');
 
 /**
+ * The viewer polls this while a manual PDF builds. It is an in-memory lookup,
+ * so it gets its own budget (pdfStatusLimiter) instead of sharing the general
+ * one: a stale tab that polls forever must not turn page loads into 429s.
+ */
+function isPdfStatusPath(req) {
+  return /\/pdf\/status\/?$/.test(req.path || '');
+}
+
+/**
  * General ceiling for all API traffic, per IP.
  */
 const apiLimiter = rateLimit({
@@ -8,7 +17,21 @@ const apiLimiter = rateLimit({
   limit: 600,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: isPdfStatusPath,
   message: { error: 'Too many requests, please slow down' },
+});
+
+/**
+ * Separate budget for the PDF status poll (see isPdfStatusPath). Deliberately
+ * huge: the lookup is free, and a whole office behind one NAT with old tabs
+ * still polling every 5 s must never be told to slow down.
+ */
+const pdfStatusLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  limit: 6000,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many status checks, please slow down' },
 });
 
 /**
@@ -50,4 +73,4 @@ const authFailLimiter = rateLimit({
   message: { error: 'Too many failed authentication attempts, try again later' },
 });
 
-module.exports = { apiLimiter, heavyLimiter, searchLimiter, authFailLimiter };
+module.exports = { apiLimiter, heavyLimiter, searchLimiter, authFailLimiter, pdfStatusLimiter, isPdfStatusPath };

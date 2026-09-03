@@ -187,3 +187,10 @@ The Docker setup uses **volume mounts** so code changes are reflected immediatel
 
 In **development mode**: Vite dev server runs on port 5173, Express on port 3000.
 In **production mode**: Client is built, Express serves it as static files on port 3000.
+
+
+## Manual PDF Builds and Status Polling
+
+At startup the server picks up the cached whole-manual PDF for every repo in `docs/` (or starts building one in the background); edits through the editor invalidate and rebuild it. The viewer asks `GET /api/repos/:repo/pdf/status` once per repo and keeps asking, with backoff from 5 s toward 30 s, **only while the status is `building`**. It stops on `idle`, `ready` and `error`, pauses while the tab is hidden, and honours `Retry-After` on a 429. The policy lives in `client/src/utils/pdfPolling.js`.
+
+The status route has its own, very large rate-limit budget (`pdfStatusLimiter`, 6000 per 5 minutes) and is skipped by the general API limiter, so a stale tab that still polls the old way cannot exhaust the budget that page loads depend on.

@@ -67,7 +67,7 @@
                 Manual PDF
               </button>
               <span v-else class="download-menu-item disabled">
-                Manual PDF (building...)
+                {{ pdfMenuLabel }}
               </span>
               <button class="download-menu-item" @click="downloadPagePdf">
                 This Page PDF
@@ -115,6 +115,7 @@ import SearchOverlay from '@/components/viewer/SearchOverlay.vue'
 import { apiFetch } from '@/utils/api'
 import { withBase } from '@/utils/basePath'
 import { getTheme, toggleTheme } from '@/utils/theme'
+import { INITIAL_POLL_DELAY, shouldKeepPolling, nextPollDelay, retryAfterMs } from '@/utils/pdfPolling'
 
 export default {
   name: 'ViewerLayout',
@@ -130,8 +131,9 @@ export default {
       error: null,
       showSearch: false,
       sidebarCollapsed: false,
-      pdfStatus: 'idle',
+      pdfStatus: null, // null = not asked yet / last check failed
       pdfPollTimer: null,
+      pdfPollDelay: INITIAL_POLL_DELAY,
       titleMap: {},
       repoInfo: null,
       currentTheme: getTheme(),
@@ -139,6 +141,11 @@ export default {
     }
   },
   computed: {
+    pdfMenuLabel() {
+      if (this.pdfStatus === 'building') return 'Manual PDF (building...)'
+      if (this.pdfStatus === null) return 'Manual PDF (checking...)'
+      return 'Manual PDF (unavailable)'
+    },
     repoName() {
       return this.$route.params.repoName
     },
@@ -196,7 +203,7 @@ export default {
     },
     repoName: {
       handler() {
-        this.checkPdfStatus()
+        this.restartPdfPolling()
         this.fetchTitleMap()
         this.fetchRepoInfo()
       },
@@ -207,11 +214,12 @@ export default {
     this.loadFile()
     window.addEventListener('keydown', this.handleKeydown)
     window.addEventListener('click', this.handleOutsideClick)
-    this.startPdfPolling()
+    document.addEventListener('visibilitychange', this.onVisibilityChange)
   },
   beforeUnmount() {
     window.removeEventListener('keydown', this.handleKeydown)
     window.removeEventListener('click', this.handleOutsideClick)
+    document.removeEventListener('visibilitychange', this.onVisibilityChange)
     this.stopPdfPolling()
   },
   methods: {
@@ -302,31 +310,54 @@ export default {
         this.showSearch = false
       }
     },
+    // The manual PDF builds in the background on the server. Ask once per
+    // repo, keep asking (with backoff) only while it is actually building,
+    // and stop on every other state. A 429 is honoured via Retry-After.
+    // See utils/pdfPolling.js for the policy.
     async checkPdfStatus() {
       if (!this.repoName) return
+      this.stopPdfPolling()
+      const repoName = this.repoName
+      let delay = null
       try {
-        const response = await apiFetch(
-          '/api/repos/' + this.repoName + '/pdf/status'
-        )
-        if (response.ok) {
+        const response = await apiFetch('/api/repos/' + repoName + '/pdf/status')
+        if (repoName !== this.repoName) return // repo changed mid-flight
+        if (response.status === 429) {
+          delay = retryAfterMs(response)
+        } else if (response.ok) {
           const data = await response.json()
           this.pdfStatus = data.status
+          if (shouldKeepPolling(this.pdfStatus)) {
+            delay = this.pdfPollDelay
+            this.pdfPollDelay = nextPollDelay(this.pdfPollDelay)
+          }
         }
       } catch {
-        // ignore
+        // network trouble: leave the status unknown; a repo change or the tab
+        // becoming visible again triggers a fresh check
+      }
+      if (delay !== null && !document.hidden) {
+        this.pdfPollTimer = setTimeout(() => this.checkPdfStatus(), delay)
       }
     },
-    startPdfPolling() {
-      this.pdfPollTimer = setInterval(() => {
-        if (this.pdfStatus !== 'ready') {
-          this.checkPdfStatus()
-        }
-      }, 5000)
+    restartPdfPolling() {
+      this.stopPdfPolling()
+      this.pdfStatus = null
+      this.pdfPollDelay = INITIAL_POLL_DELAY
+      this.checkPdfStatus()
     },
     stopPdfPolling() {
       if (this.pdfPollTimer) {
-        clearInterval(this.pdfPollTimer)
+        clearTimeout(this.pdfPollTimer)
         this.pdfPollTimer = null
+      }
+    },
+    onVisibilityChange() {
+      if (document.hidden) {
+        this.stopPdfPolling()
+      } else if (this.pdfStatus === null || shouldKeepPolling(this.pdfStatus)) {
+        this.pdfPollDelay = INITIAL_POLL_DELAY
+        this.checkPdfStatus()
       }
     },
     handleOutsideClick(e) {
