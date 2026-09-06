@@ -249,6 +249,12 @@ Code blocks that contain RDF/XML get extra tabs that convert the snippet to Turt
 </bf:Hub>
 ```
 
+A document that only declares namespaces is shown one declaration per line, and its Turtle and JSON-LD tabs list every prefix instead of coming up empty:
+
+```xml
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#" xmlns:bf="http://id.loc.gov/ontologies/bibframe/" xmlns:bflc="http://id.loc.gov/ontologies/bflc/" xmlns:madsrdf="http://www.loc.gov/mads/rdf/v1#" />
+```
+
 ### JSON
 
 ```json

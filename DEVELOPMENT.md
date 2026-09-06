@@ -91,9 +91,9 @@ For those, the fence renderer emits `<div class="rdf-block"><pre><code>...</code
 
 | Tab | Source |
 | --- | --- |
-| RDF/XML | the Prism-highlighted fence content |
-| JSON-LD | `toJsonLd()` - `@context` of the prefixes actually used, embedded blank nodes, `@list`, native numbers/booleans |
-| Turtle | `toTurtle()` - nested `[ ... ]` for single-use blank nodes, `( ... )` for collections, `a` for `rdf:type`, numeric/boolean shorthand |
+| RDF/XML | the Prism-highlighted fence content (a namespace-only root is laid out one declaration per line, see below) |
+| JSON-LD | `toJsonLd()` - `@context` of the prefixes actually used (every declared prefix when there are no triples), embedded blank nodes, `@list`, native numbers/booleans |
+| Turtle | `toTurtle()` - nested `[ ... ]` for single-use blank nodes, `( ... )` for collections, `a` for `rdf:type`, numeric/boolean shorthand; an aligned `@prefix` table of every declared prefix when there are no triples |
 | Graph | `RdfGraph.vue` - dagre layout; resources are ellipses, classes are tinted ellipses, blank nodes dashed, literals are boxes (with `@lang` / `^^datatype`), predicates are labeled arrows. Shown at natural size (readable labels; drag to pan), with Fit / 100% buttons, ctrl/cmd+wheel zoom, and a top-to-bottom (default) / left-to-right switch. |
 
 Conversion happens lazily on the first tab switch; the RDF utilities (`client/src/utils/rdf/`) and dagre are loaded as a separate chunk.
@@ -104,6 +104,8 @@ The parser (`client/src/utils/rdf/rdfxml.js`) is a DOMParser-based implementatio
 3. declares any prefix that is used but not declared, using the well-known table in `client/src/utils/rdf/terms.js` (`bf`, `bflc`, `madsrdf`, `rdfs`, `xsd`, `foaf`, `dcterms`, `schema`, ...). Unknown prefixes get a placeholder namespace and a warning is shown above the converted output.
 
 Malformed XML is reported in the tab panel with the line and column from the browser's parser.
+
+**Namespace-only documents.** An `rdf:RDF` root that carries nothing but attributes (the way a manual introduces the prefixes its other examples leave out) has no triples, so the usual output would be empty. `formatEmptyRdfXml()` (`client/src/utils/rdf/emptyRoot.js`) rewrites such a fence with one attribute per line before it is highlighted, and when a parsed document has zero quads `toTurtle()` prints every declared prefix as an aligned `@prefix` table while `toJsonLd()` puts them all in `@context` above an empty `@graph`. Anything with content, a fragment, or a root without attributes is left as it is. The HTML download and the PDF apply the same layout through the CommonJS copy in `server/src/services/rdfEmptyRoot.js`; keep the two files in step.
 
 ### Git Operations (`server/src/services/git.js`)
 

@@ -3,6 +3,7 @@ const path = require('path');
 const PDFDocument = require('pdfkit');
 const { parseNav } = require('./fileTree');
 const { processIncludes, prependGlobalStyle } = require('./includeProcessor');
+const { formatEmptyRdfXml } = require('./rdfEmptyRoot');
 
 /**
  * Per-repo state:
@@ -484,7 +485,9 @@ function renderMarkdownFile(doc, repoPath, filePath, destinations) {
           doc.fillColor('#1a202c').font('Helvetica');
         } else {
           // Regular code block — render accumulated lines
-          const codeText = codeLines.join('\n');
+          // (a namespace-only rdf:RDF root goes one declaration per line, as in the viewer)
+          const rawCode = codeLines.join('\n');
+          const codeText = formatEmptyRdfXml(rawCode) || rawCode;
           if (codeText.trim()) {
             doc.fontSize(CODE_SIZE).font('Courier');
             doc.fillColor('#334155')

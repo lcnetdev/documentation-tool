@@ -83,6 +83,26 @@ function encodePredicate(term, prefixes, used) {
   return term.termType === 'NamedNode' && term.value === RDF.type ? 'a' : encodeTerm(term, prefixes, used)
 }
 
+function prefixLine(prefix, ns, width) {
+  return '@prefix ' + (prefix + ':').padEnd(width) + ' <' + escapeIri(ns) + '> .'
+}
+
+/** The prefixes the body actually needed, in declaration order. */
+function prefixHeader(prefixes, used) {
+  return Object.keys(prefixes).filter(p => used.has(p)).map(p => prefixLine(p, prefixes[p], 0))
+}
+
+/**
+ * Every declared prefix, with the namespaces aligned in a column. A
+ * namespace-only document has no triples to filter by, and listing its
+ * declarations is its point.
+ */
+function prefixTable(prefixes) {
+  const names = Object.keys(prefixes)
+  const width = Math.max(0, ...names.map(p => p.length + 1))
+  return names.map(p => prefixLine(p, prefixes[p], width))
+}
+
 /**
  * @param {{ quads: Array, prefixes: Object<string,string> }} parsed
  * @returns {string} the Turtle document
@@ -141,7 +161,7 @@ export function toTurtle(parsed) {
     blocks.push(renderSubject(entry))
   }
 
-  const header = Object.keys(prefixes).filter(p => used.has(p)).map(p => '@prefix ' + p + ': <' + escapeIri(prefixes[p]) + '> .')
+  const header = quads.length ? prefixHeader(prefixes, used) : prefixTable(allPrefixes)
   const parts = []
   if (header.length) parts.push(header.join('\n'))
   if (blocks.length) parts.push(blocks.join('\n\n'))

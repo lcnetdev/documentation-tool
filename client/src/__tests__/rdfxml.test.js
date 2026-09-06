@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { parseRdfXml, prepareRdfXml, RdfXmlError } from '@/utils/rdf/rdfxml'
 import { looksLikeRdfXml } from '@/utils/rdf/detect'
+import { formatEmptyRdfXml, parseEmptyRdfRoot } from '@/utils/rdf/emptyRoot'
 import { RDF, XSD, RDF_NS } from '@/utils/rdf/terms'
 
 const FOAF = 'http://xmlns.com/foaf/0.1/'
@@ -271,5 +272,34 @@ describe('looksLikeRdfXml', () => {
     expect(looksLikeRdfXml('xml', '<p>rdf:about is an attribute</p>')).toBe(false)
     expect(looksLikeRdfXml('python', 'print("<rdf:RDF>")')).toBe(false)
     expect(looksLikeRdfXml('', 'plain text')).toBe(false)
+  })
+})
+
+describe('formatEmptyRdfXml', () => {
+  const NAMESPACES = `<rdf:RDF\n    xmlns:rdf="${RDF_NS}" xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#" xmlns:bf="${BF}"\n    />\n`
+
+  it('puts each declaration of a namespace-only root on its own line', () => {
+    expect(formatEmptyRdfXml(NAMESPACES)).toBe(
+      `<rdf:RDF\n    xmlns:rdf="${RDF_NS}"\n    xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#"\n    xmlns:bf="${BF}"\n/>`
+    )
+  })
+
+  it('keeps an explicit closing tag, other prefixes and single-quoted values', () => {
+    const source = `<?xml version="1.0"?>\n<r:RDF xmlns:r='${RDF_NS}' xml:base="http://x/"></r:RDF>`
+    expect(parseEmptyRdfRoot(source)).toEqual({
+      prefix: 'r',
+      attributes: [{ name: 'xmlns:r', value: RDF_NS }, { name: 'xml:base', value: 'http://x/' }],
+      selfClosing: false
+    })
+    expect(formatEmptyRdfXml(source)).toBe(`<r:RDF\n    xmlns:r="${RDF_NS}"\n    xml:base="http://x/"\n>\n</r:RDF>`)
+  })
+
+  it('leaves documents with content, fragments and bare roots alone', () => {
+    expect(formatEmptyRdfXml(`<rdf:RDF xmlns:rdf="${RDF_NS}"><bf:Work/></rdf:RDF>`)).toBeNull()
+    expect(formatEmptyRdfXml(`<rdf:RDF xmlns:rdf="${RDF_NS}">\n  <!-- soon -->\n</rdf:RDF>`)).toBeNull()
+    expect(formatEmptyRdfXml('<bf:Work rdf:about="http://x/1"/>')).toBeNull()
+    expect(formatEmptyRdfXml('<rdf:RDF/>')).toBeNull()
+    expect(formatEmptyRdfXml('')).toBeNull()
+    expect(parseEmptyRdfRoot('<bf:Work rdf:about="http://x/1"/>')).toBeNull()
   })
 })

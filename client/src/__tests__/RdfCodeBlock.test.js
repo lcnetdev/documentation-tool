@@ -73,6 +73,23 @@ describe('RdfCodeBlock', () => {
     expect(wrapper.find('.rdf-error').text()).toContain('Could not parse this block as RDF/XML.')
     expect(wrapper.find('.rdf-error-detail').text()).toMatch(/Line \d+/)
   })
+
+  it('lists every declared prefix for a namespace-only document', async () => {
+    const source = '<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:bf="http://id.loc.gov/ontologies/bibframe/"/>'
+    const wrapper = mount(RdfCodeBlock, { props: { source, sourceHtml: '' } })
+    await wrapper.findAll('[role="tab"]')[2].trigger('click')
+    await settle(wrapper, () => wrapper.find('code.language-turtle').exists())
+    const turtle = wrapper.find('code.language-turtle').text()
+    expect(turtle).toContain('@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .')
+    expect(turtle).toContain('@prefix bf:  <http://id.loc.gov/ontologies/bibframe/> .')
+    expect(wrapper.find('.rdf-meta').text()).toBe('0 triples')
+
+    await wrapper.findAll('[role="tab"]')[1].trigger('click')
+    await settle(wrapper, () => wrapper.find('code.language-json').exists())
+    const json = wrapper.find('code.language-json').text()
+    expect(json).toContain('"bf": "http://id.loc.gov/ontologies/bibframe/"')
+    expect(json).toContain('"@graph": []')
+  })
 })
 
 describe('MarkdownRenderer RDF integration', () => {

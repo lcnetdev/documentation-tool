@@ -33,7 +33,8 @@ function nativeValue(lit) {
  */
 export function toJsonLd(parsed) {
   const quads = parsed.quads || []
-  const prefixes = usedPrefixes(quads, parsed.prefixes || {}, COMPACT_OPTIONS)
+  const declared = parsed.prefixes || {}
+  const prefixes = usedPrefixes(quads, declared, COMPACT_OPTIONS)
   const used = new Set()
   const graph = analyze(quads)
   const consumed = new Set()
@@ -103,8 +104,17 @@ export function toJsonLd(parsed) {
 
   const doc = {}
   const context = {}
-  for (const p of Object.keys(prefixes)) {
-    if (used.has(p)) context[p] = prefixes[p]
+  if (quads.length) {
+    for (const p of Object.keys(prefixes)) {
+      if (used.has(p)) context[p] = prefixes[p]
+    }
+  } else {
+    // A namespace-only document has nothing to compact; its context carries
+    // every declared prefix instead, since introducing them is its point.
+    // The default namespace is left out: '' is not a valid JSON-LD term.
+    for (const p of Object.keys(declared)) {
+      if (p !== '') context[p] = declared[p]
+    }
   }
   if (Object.keys(context).length) doc['@context'] = context
   if (nodes.length === 1) Object.assign(doc, nodes[0])

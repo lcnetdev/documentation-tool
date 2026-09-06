@@ -8,7 +8,8 @@ const { processIncludes, prependGlobalStyle } = require('../services/includeProc
 const { getStatus, buildSinglePagePdf } = require('../services/pdfGenerator');
 const { heavyLimiter, pdfStatusLimiter } = require('../middleware/rateLimits');
 const MarkdownIt = require('markdown-it');
-const { highlightCode, TOKEN_CSS } = require('../services/highlight');
+const { highlightCode, resolveLanguage, TOKEN_CSS } = require('../services/highlight');
+const { formatEmptyRdfXml } = require('../services/rdfEmptyRoot');
 const { listStyleHints, LIST_STYLE_CSS } = require('../services/listStyleHints');
 const RepoMeta = require('../services/repoMeta');
 
@@ -263,7 +264,9 @@ router.get('/:repoName/html/page/*', heavyLimiter, (req, res) => {
       linkify: true,
       breaks: true,
       highlight(str, lang) {
-        const result = highlightCode(str, lang);
+        // A namespace-only rdf:RDF root is laid out one declaration per line, as in the viewer
+        const code = resolveLanguage(lang) === 'markup' ? (formatEmptyRdfXml(str) || str) : str;
+        const result = highlightCode(code, lang);
         return result ? result.html : '';
       }
     });

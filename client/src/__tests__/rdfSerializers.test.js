@@ -171,3 +171,42 @@ describe('compactIri', () => {
     expect(compactIri('http://other/', prefixes)).toBeNull()
   })
 })
+
+describe('namespace-only documents', () => {
+  const RDFS = 'http://www.w3.org/2000/01/rdf-schema#'
+  const BF = 'http://id.loc.gov/ontologies/bibframe/'
+  const BFLC = 'http://id.loc.gov/ontologies/bflc/'
+  const MADS = 'http://www.loc.gov/mads/rdf/v1#'
+  const parsed = parseRdfXml(
+    `<rdf:RDF\n    xmlns:rdf="${RDF_NS}"\n    xmlns:rdfs="${RDFS}"\n    xmlns:bf="${BF}"\n    xmlns:bflc="${BFLC}"\n    xmlns:madsrdf="${MADS}"\n/>`
+  )
+
+  it('parse to no triples', () => {
+    expect(parsed.quads).toEqual([])
+    expect(Object.keys(parsed.prefixes)).toEqual(['rdf', 'rdfs', 'bf', 'bflc', 'madsrdf'])
+  })
+
+  it('come out of toTurtle as an aligned table of every declared prefix', () => {
+    expect(toTurtle(parsed)).toBe(
+      `@prefix rdf:     <${RDF_NS}> .\n` +
+      `@prefix rdfs:    <${RDFS}> .\n` +
+      `@prefix bf:      <${BF}> .\n` +
+      `@prefix bflc:    <${BFLC}> .\n` +
+      `@prefix madsrdf: <${MADS}> .\n`
+    )
+  })
+
+  it('come out of toJsonLd with every declared prefix in @context and an empty @graph', () => {
+    const doc = toJsonLd(parsed)
+    expect(Object.keys(doc)).toEqual(['@context', '@graph'])
+    expect(Object.keys(doc['@context'])).toEqual(['rdf', 'rdfs', 'bf', 'bflc', 'madsrdf'])
+    expect(doc['@context'].madsrdf).toBe(MADS)
+    expect(doc['@graph']).toEqual([])
+  })
+
+  it('leave the default namespace out of the JSON-LD context but keep it in Turtle', () => {
+    const withDefault = parseRdfXml(`<rdf:RDF xmlns:rdf="${RDF_NS}" xmlns="${BF}"/>`)
+    expect(toJsonLd(withDefault)['@context']).toEqual({ rdf: RDF_NS })
+    expect(toTurtle(withDefault)).toBe(`@prefix rdf: <${RDF_NS}> .\n@prefix :    <${BF}> .\n`)
+  })
+})

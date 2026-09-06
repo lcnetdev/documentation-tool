@@ -114,6 +114,13 @@ describe('fenced code blocks', () => {
     expect(html).toContain('class="rdf-block"')
   })
 
+  it('lays out a namespace-only rdf:RDF root one declaration per line', () => {
+    const html = render('```xml\n<rdf:RDF\n    xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:bf="http://id.loc.gov/ontologies/bibframe/"\n    />\n```')
+    const text = html.replace(/<[^>]+>/g, '').replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    expect(html).toContain('class="rdf-block"')
+    expect(text).toContain('<rdf:RDF\n    xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"\n    xmlns:bf="http://id.loc.gov/ontologies/bibframe/"\n/>')
+  })
+
   it('does not wrap ordinary xml', () => {
     const html = render('```xml\n<record><leader>x</leader></record>\n```')
     expect(html).not.toContain('rdf-block')

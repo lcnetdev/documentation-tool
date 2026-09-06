@@ -4,6 +4,7 @@ import { resolveRelativePath } from '@/utils/relativePath'
 import { withBase } from '@/utils/basePath'
 import { highlightCode } from '@/utils/highlight'
 import { looksLikeRdfXml } from '@/utils/rdf/detect'
+import { formatEmptyRdfXml } from '@/utils/rdf/emptyRoot'
 import listStyleHints from '@/utils/listStyleHints'
 
 /**
@@ -52,8 +53,10 @@ export function createMarkdownRenderer(repoName, currentFilePath, mode) {
     // highlighted <pre> inside doubles as the no-JS fallback and as the place
     // the raw text is read from.
     if (looksLikeRdfXml(lang, token.content)) {
-      const highlighted = highlightCode(token.content, 'xml')
-      const inner = highlighted ? highlighted.html : escapeHtml(token.content)
+      // A namespace-only root is laid out one declaration per line
+      const source = formatEmptyRdfXml(token.content) || token.content
+      const highlighted = highlightCode(source, 'xml')
+      const inner = highlighted ? highlighted.html : escapeHtml(source)
       return '<div class="rdf-block" data-rdf-format="rdfxml"><pre><code class="language-xml">' +
         inner + '</code></pre></div>\n'
     }
