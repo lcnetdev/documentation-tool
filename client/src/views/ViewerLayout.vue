@@ -1,62 +1,98 @@
 <template>
-  <div class="viewer-layout">
-    <aside v-show="!sidebarCollapsed" class="viewer-sidebar">
-      <div class="sidebar-header">
-        <div class="sidebar-title-row">
-          <h2 class="sidebar-title">{{ displayName }}</h2>
-          <div class="sidebar-actions">
-            <button class="search-btn" @click="showSearch = true" title="Search">
-              Search
-            </button>
-            <button class="collapse-btn" @click="sidebarCollapsed = true" title="Collapse sidebar">
-              &#x2039;
-            </button>
+  <div class="viewer-layout" :class="{ 'is-mobile': isMobile }">
+    <!-- On phones the sidebar is an off-canvas drawer opened from the menu button -->
+    <transition name="drawer">
+      <aside
+        v-show="sidebarVisible"
+        id="viewer-sidebar"
+        class="viewer-sidebar"
+        :aria-hidden="isMobile && !mobileNavOpen ? 'true' : null"
+      >
+        <div class="sidebar-header">
+          <div class="sidebar-title-row">
+            <h2 class="sidebar-title">{{ displayName }}</h2>
+            <div class="sidebar-actions">
+              <button class="search-btn" @click="showSearch = true" title="Search">
+                Search
+              </button>
+              <button
+                ref="sidebarClose"
+                class="collapse-btn"
+                :title="isMobile ? 'Close navigation' : 'Collapse sidebar'"
+                :aria-label="isMobile ? 'Close navigation' : 'Collapse sidebar'"
+                @click="hideSidebar"
+              >
+                <span v-if="isMobile" aria-hidden="true">&times;</span>
+                <span v-else aria-hidden="true">&#x2039;</span>
+              </button>
+            </div>
+          </div>
+          <div v-if="isBranch" class="branch-badge" :title="'Branch of ' + repoInfo.parentRepo">
+            &#x2937; Branch: {{ repoInfo.branchName }}
           </div>
         </div>
-        <div v-if="isBranch" class="branch-badge" :title="'Branch of ' + repoInfo.parentRepo">
-          &#x2937; Branch: {{ repoInfo.branchName }}
-        </div>
-      </div>
-      <NavSidebar
-        :repo-name="repoName"
-        :current-file="currentFile"
-        @navigate="onNavNavigate"
-      />
-    </aside>
+        <NavSidebar
+          :repo-name="repoName"
+          :current-file="currentFile"
+          @navigate="onNavNavigate"
+        />
+      </aside>
+    </transition>
+    <transition name="fade">
+      <div v-if="isMobile && mobileNavOpen" class="sidebar-backdrop" @click="closeMobileNav"></div>
+    </transition>
     <main class="viewer-content">
       <div class="content-header">
         <div class="content-header-left">
-          <button v-if="sidebarCollapsed" class="expand-btn" @click="sidebarCollapsed = false" title="Show sidebar">
+          <button
+            v-if="isMobile"
+            ref="menuBtn"
+            class="menu-btn"
+            title="Open navigation"
+            aria-label="Open navigation"
+            aria-controls="viewer-sidebar"
+            :aria-expanded="mobileNavOpen ? 'true' : 'false'"
+            @click="openMobileNav"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+          </button>
+          <button v-else-if="sidebarCollapsed" class="expand-btn" @click="sidebarCollapsed = false" title="Show sidebar" aria-label="Show sidebar">
             &#x203A;
           </button>
-          <nav class="breadcrumb">
+          <nav class="breadcrumb" aria-label="Breadcrumb">
             <router-link to="/" class="breadcrumb-all-docs" title="All Documentation">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M8 7h8M8 11h6"/></svg>
             </router-link>
-            <span class="breadcrumb-sep">/</span>
+            <span class="breadcrumb-sep breadcrumb-home-sep">/</span>
             <router-link :to="'/view/' + repoName + '/index.md'" class="breadcrumb-home" title="Home">
               <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1L1 7h2v6h4V9h2v4h4V7h2L8 1z"/></svg>
             </router-link>
+            <!-- Phones show only the last crumb; this stands in for the hidden parents -->
+            <span v-if="breadcrumbs.length > 1" class="breadcrumb-ellipsis" aria-hidden="true">
+              <span class="breadcrumb-sep">/</span>&hellip;
+            </span>
             <template v-for="(crumb, i) in breadcrumbs" :key="i">
-              <span class="breadcrumb-sep">/</span>
+              <span class="breadcrumb-sep" :class="{ 'breadcrumb-parent': i < breadcrumbs.length - 1 }">/</span>
               <router-link
                 v-if="crumb.to"
                 :to="crumb.to"
                 class="breadcrumb-link"
+                :class="{ 'breadcrumb-parent': i < breadcrumbs.length - 1 }"
               >{{ crumb.label }}</router-link>
               <span v-else class="breadcrumb-current">{{ crumb.label }}</span>
             </template>
           </nav>
         </div>
         <div class="content-header-right">
-          <button class="toolbar-search" @click="showSearch = true" title="Search this manual">
+          <button class="toolbar-search" @click="showSearch = true" title="Search this manual" aria-label="Search this manual">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
             <span class="toolbar-search-label">Search manual</span>
             <kbd class="toolbar-search-kbd">{{ searchShortcut }}</kbd>
           </button>
           <div class="download-dropdown" ref="downloadDropdown">
-            <button class="download-btn" @click="showDownloadMenu = !showDownloadMenu">
-              Download &#9662;
+            <button class="download-btn" title="Download" aria-label="Download" :aria-expanded="showDownloadMenu ? 'true' : 'false'" @click="showDownloadMenu = !showDownloadMenu">
+              <span class="download-label">Download &#9662;</span>
+              <svg class="download-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M4 19h16"/></svg>
             </button>
             <div v-if="showDownloadMenu" class="download-menu">
               <button
@@ -116,6 +152,7 @@ import { apiFetch } from '@/utils/api'
 import { withBase } from '@/utils/basePath'
 import { getTheme, toggleTheme } from '@/utils/theme'
 import { INITIAL_POLL_DELAY, shouldKeepPolling, nextPollDelay, retryAfterMs } from '@/utils/pdfPolling'
+import { mobileMediaQuery, watchMediaQuery } from '@/utils/viewport'
 
 export default {
   name: 'ViewerLayout',
@@ -131,6 +168,8 @@ export default {
       error: null,
       showSearch: false,
       sidebarCollapsed: false,
+      isMobile: false,
+      mobileNavOpen: false,
       pdfStatus: null, // null = not asked yet / last check failed
       pdfPollTimer: null,
       pdfPollDelay: INITIAL_POLL_DELAY,
@@ -148,6 +187,10 @@ export default {
     },
     repoName() {
       return this.$route.params.repoName
+    },
+    /** Desktop: whatever the collapse button says. Phone: only while the drawer is open. */
+    sidebarVisible() {
+      return this.isMobile ? this.mobileNavOpen : !this.sidebarCollapsed
     },
     displayName() {
       return this.formatRepoName(this.repoName)
@@ -198,8 +241,12 @@ export default {
     '$route.params': {
       handler() {
         this.loadFile()
+        this.closeMobileNav()
       },
       deep: true
+    },
+    mobileNavOpen(open) {
+      document.body.classList.toggle('nav-drawer-open', open)
     },
     repoName: {
       handler() {
@@ -209,6 +256,11 @@ export default {
       },
       immediate: true
     }
+  },
+  created() {
+    const query = mobileMediaQuery()
+    this.isMobile = query.matches
+    this.stopWatchingViewport = watchMediaQuery(query, this.onViewportChange)
   },
   mounted() {
     this.loadFile()
@@ -220,9 +272,33 @@ export default {
     window.removeEventListener('keydown', this.handleKeydown)
     window.removeEventListener('click', this.handleOutsideClick)
     document.removeEventListener('visibilitychange', this.onVisibilityChange)
+    this.stopWatchingViewport()
+    document.body.classList.remove('nav-drawer-open')
     this.stopPdfPolling()
   },
   methods: {
+    onViewportChange(isMobile) {
+      this.isMobile = isMobile
+      // growing past the breakpoint turns the drawer back into the sidebar
+      if (!isMobile) this.mobileNavOpen = false
+    },
+    openMobileNav() {
+      this.mobileNavOpen = true
+      this.$nextTick(() => {
+        if (this.$refs.sidebarClose) this.$refs.sidebarClose.focus()
+      })
+    },
+    closeMobileNav() {
+      if (!this.mobileNavOpen) return
+      this.mobileNavOpen = false
+      this.$nextTick(() => {
+        if (this.$refs.menuBtn) this.$refs.menuBtn.focus()
+      })
+    },
+    hideSidebar() {
+      if (this.isMobile) this.closeMobileNav()
+      else this.sidebarCollapsed = true
+    },
     onToggleTheme() {
       this.currentTheme = toggleTheme()
     },
@@ -308,6 +384,7 @@ export default {
       }
       if (e.key === 'Escape') {
         this.showSearch = false
+        this.closeMobileNav()
       }
     },
     // The manual PDF builds in the background on the server. Ask once per
@@ -419,7 +496,8 @@ export default {
 .breadcrumb-home { display: inline-flex; align-items: center; color: var(--text-muted); text-decoration: none; flex-shrink: 0; padding: 4px; border-radius: 4px; }
 .breadcrumb-home:hover { color: var(--color-primary); background: var(--bg-surface-hover); }
 .breadcrumb-sep { color: var(--border-medium); flex-shrink: 0; }
-.breadcrumb-link { color: var(--color-primary); text-decoration: none; white-space: nowrap; }
+.breadcrumb-link { color: var(--color-primary); text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.breadcrumb-ellipsis { display: none; }
 .breadcrumb-link:hover { text-decoration: underline; }
 .breadcrumb-current { color: var(--text-tertiary); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .toolbar-search { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px 4px 10px; font-size: 12px; background: var(--bg-surface-hover); border: 1px solid var(--border-color); border-radius: 4px; cursor: pointer; color: var(--text-tertiary); min-width: 160px; text-align: left; }
@@ -428,7 +506,8 @@ export default {
 .toolbar-search-label { flex: 1; }
 .toolbar-search-kbd { font-family: inherit; font-size: 10px; padding: 1px 5px; border: 1px solid var(--border-medium); border-radius: 3px; background: var(--bg-surface); color: var(--text-muted); }
 .download-dropdown { position: relative; }
-.download-btn { padding: 4px 12px; font-size: 12px; background: var(--bg-surface-hover); border: 1px solid var(--border-color); border-radius: 4px; cursor: pointer; color: var(--text-tertiary); }
+.download-btn { display: inline-flex; align-items: center; padding: 4px 12px; font-size: 12px; background: var(--bg-surface-hover); border: 1px solid var(--border-color); border-radius: 4px; cursor: pointer; color: var(--text-tertiary); }
+.download-icon { display: none; }
 .download-btn:hover { background: var(--bg-surface-active); }
 .download-menu { position: absolute; top: 100%; right: 0; margin-top: 4px; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 6px; box-shadow: var(--shadow-md); min-width: 160px; z-index: 20; overflow: hidden; }
 .download-menu-item { display: block; width: 100%; padding: 8px 14px; font-size: 12px; text-align: left; background: none; border: none; cursor: pointer; color: var(--text-secondary); white-space: nowrap; }
@@ -440,4 +519,41 @@ export default {
 .content-body { flex: 1; padding: 24px 48px; max-width: 900px; }
 .loading, .error { padding: 48px; text-align: center; color: var(--text-muted); }
 .error { color: var(--color-error); }
+
+/* ---- Phones and small tablets: the sidebar becomes a drawer ----
+   Breakpoint mirrors MOBILE_BREAKPOINT in utils/viewport.js */
+.menu-btn { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; background: var(--bg-surface-hover); border: 1px solid var(--border-color); border-radius: 4px; cursor: pointer; color: var(--text-tertiary); flex-shrink: 0; }
+.menu-btn:hover { background: var(--bg-surface-active); }
+.sidebar-backdrop { position: fixed; inset: 0; background: var(--bg-overlay); z-index: 30; }
+@media (max-width: 900px) {
+  .viewer-sidebar { position: fixed; top: 0; left: 0; bottom: 0; height: auto; width: min(320px, 85vw); min-width: 0; z-index: 40; box-shadow: var(--shadow-xl); }
+  .sidebar-header { padding-top: calc(16px + env(safe-area-inset-top, 0px)); }
+  .collapse-btn { width: 36px; height: 36px; font-size: 22px; }
+  .search-btn { min-height: 36px; padding: 4px 14px; font-size: 13px; }
+  .drawer-enter-active, .drawer-leave-active { transition: transform 0.2s ease; }
+  .drawer-enter-from, .drawer-leave-to { transform: translateX(-100%); }
+  .fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease; }
+  .fade-enter-from, .fade-leave-to { opacity: 0; }
+  .content-header { padding: 8px 12px; gap: 8px; }
+  .content-header-right { gap: 6px; }
+  .toolbar-search { min-width: 0; padding: 0; width: 36px; height: 36px; justify-content: center; }
+  .toolbar-search svg { width: 16px; height: 16px; }
+  .toolbar-search-label, .toolbar-search-kbd { display: none; }
+  .download-btn { padding: 0; width: 36px; height: 36px; justify-content: center; }
+  .download-label { display: none; }
+  .download-icon { display: block; }
+  .edit-link { display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; font-size: 13px; }
+  .theme-toggle { width: 36px; height: 36px; }
+  .content-body { padding: 16px; }
+  .loading, .error { padding: 32px 16px; }
+}
+@media (max-width: 640px) {
+  /* keep the current page readable: parents collapse into an ellipsis and the
+     home icon goes (the drawer's first row is the homepage) */
+  .breadcrumb-parent, .breadcrumb-home, .breadcrumb-home-sep { display: none; }
+  .breadcrumb-ellipsis { display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .drawer-enter-active, .drawer-leave-active, .fade-enter-active, .fade-leave-active { transition: none; }
+}
 </style>

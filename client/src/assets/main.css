@@ -959,37 +959,22 @@ h1, h2, h3, h4, h5, h6 {
 /* ============================================
    Responsive Considerations
    ============================================ */
-@media (max-width: 1200px) {
-  .viewer-sidebar {
-    width: 240px;
-    min-width: 240px;
-  }
+/* The viewer's own responsive rules live in views/ViewerLayout.vue: its
+   styles are scoped, so global rules for those classes lose on specificity. */
 
+/* Scroll lock while the phone navigation drawer is open */
+body.nav-drawer-open {
+  overflow: hidden;
+}
+
+@media (max-width: 1200px) {
   .editor-filetree {
     width: 200px;
     min-width: 200px;
   }
-
-  .content-body {
-    padding: 24px;
-  }
 }
 
 @media (max-width: 900px) {
-  .viewer-layout {
-    flex-direction: column;
-  }
-
-  .viewer-sidebar {
-    width: 100%;
-    min-width: 100%;
-    height: auto;
-    position: static;
-    max-height: 40vh;
-    border-right: none;
-    border-bottom: 1px solid var(--border-color);
-  }
-
   .editor-layout {
     flex-direction: column;
     height: auto;
@@ -1020,10 +1005,6 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 @media (max-width: 640px) {
-  .content-body {
-    padding: 16px;
-  }
-
   .search-modal {
     margin: 0 16px;
     max-height: 80vh;

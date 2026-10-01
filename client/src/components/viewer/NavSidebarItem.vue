@@ -167,4 +167,13 @@ export default {
   margin: 0;
   padding: 0 0 0 12px;
 }
+
+/* finger-sized rows inside the phone drawer (breakpoint: utils/viewport.js) */
+@media (max-width: 900px) {
+  .tree-label {
+    padding-top: 10px;
+    padding-bottom: 10px;
+    font-size: 14px;
+  }
+}
 </style>
