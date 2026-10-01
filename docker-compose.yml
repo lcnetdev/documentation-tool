@@ -1,6 +1,9 @@
 services:
   app:
     build: .
+    # Come back after a host reboot, a Docker daemon restart or a crash.
+    # Stays down only when stopped on purpose (docker compose stop / down).
+    restart: unless-stopped
     ports:
       - "4580:4580"
       # Vite dev server: localhost only — never expose dev tooling publicly
