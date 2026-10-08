@@ -26,11 +26,16 @@ app.use(
       useDefaults: false,
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: ["'self'"],
+        // Adobe Launch (assets.adobedtm.com) loads the analytics library and
+        // extension files; the Experience Cloud ID service (dpm.demdex.net)
+        // may fall back to JSONP, so it needs script-src as well.
+        scriptSrc: ["'self'", 'https://assets.adobedtm.com', 'https://dpm.demdex.net'],
         styleSrc: ["'self'", "'unsafe-inline'"], // rendered docs use inline styles
-        imgSrc: ["'self'", 'data:', 'https:'], // docs may embed external images
+        imgSrc: ["'self'", 'data:', 'https:'], // docs may embed external images; also analytics image beacons
         fontSrc: ["'self'", 'data:'],
-        connectSrc: ["'self'"],
+        // Analytics beacons (XHR/sendBeacon) go to the first-party tracking
+        // server configured in the Launch property; ECID service uses CORS.
+        connectSrc: ["'self'", 'https://smon.bibframe.org', 'https://dpm.demdex.net'],
         objectSrc: ["'none'"],
         frameAncestors: ["'self'"],
         baseUri: ["'self'"],
