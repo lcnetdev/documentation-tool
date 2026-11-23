@@ -2,6 +2,9 @@
   "name": "documentation-tool-client",
   "version": "1.0.0",
   "private": true,
+  "engines": {
+    "node": ">=24"
+  },
   "type": "module",
   "scripts": {
     "dev": "vite",
